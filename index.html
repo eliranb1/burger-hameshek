@@ -138,6 +138,7 @@ fieldset{border:0;margin-top:18px}
 legend{font-weight:800;font-size:18px;margin-bottom:8px}
 legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-start:6px}
 .who{font-family:var(--display);color:var(--yolk);font-size:20px;margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
+.sh-body > .who:first-child{border-top:0;margin-top:8px;padding-top:0}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{position:relative}
 .chip input{position:absolute;opacity:0;inset:0;cursor:pointer}
@@ -186,6 +187,15 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .hint{color:var(--straw);font-size:14.5px;font-weight:600;margin-top:6px}
 .dchips .chip span{padding:0 12px 0 8px}
 .dchips .chip img{width:22px;height:30px;object-fit:contain;border-radius:0;margin:0}
+.schip{display:inline-flex;align-items:stretch;border-radius:10px;border:1.5px solid var(--line);background:rgba(0,0,0,.2);overflow:hidden}
+.schip button{min-height:44px;font-weight:700;color:var(--chalk)}
+.schip .sadd{padding:0 16px}
+.schip .sadd:disabled{opacity:.35;cursor:default}
+.schip.on{background:var(--yolk);border-color:var(--yolk)}
+.schip.on button{color:var(--char)}
+.schip.on .sadd:disabled{opacity:1}
+.schip i{font-style:normal;font-weight:800;background:var(--char);color:var(--yolk);border-radius:6px;padding:0 6px;margin-inline-start:4px}
+.schip .sminus{width:40px;font-size:22px;border-inline-start:1.5px solid rgba(31,20,12,.25)}
 .up-sec{font-family:var(--display);font-size:21px;color:var(--yolk);margin:18px 0 4px}
 .pay{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pay .chip span{flex-direction:column;justify-content:center;width:100%;min-height:72px;gap:2px;padding:6px}
@@ -463,13 +473,14 @@ $("#kinds").addEventListener("click",e=>{const b=e.target.closest(".opt");if(!b)
   refreshBuilder();openSheet("builder");
 });
 function renderSauces(i){
-  const c=sauceCnt[i],tot=Object.values(c).reduce((a,b)=>a+b,0);
-  $("#sc"+i).innerHTML=SAUCES.map(s=>`<div class="sc"><b>${s}</b><span class="qty ${c[s]?"has":""}"><button type="button" data-sauce="${i}" data-s="${s}" data-d="1" ${tot>=CFG.sauceMax?"disabled style='opacity:.3'":""} aria-label="עוד ${s}">+</button><output>${c[s]||0}</output><button type="button" data-sauce="${i}" data-s="${s}" data-d="-1" aria-label="פחות ${s}">−</button></span></div>`).join("")
-   +`<p class="hint">נבחרו ${tot} מתוך ${CFG.sauceMax}</p>`;
+  const c=sauceCnt[i],tot=Object.values(c).reduce((a,b)=>a+b,0),full=tot>=CFG.sauceMax;
+  $("#sc"+i).innerHTML=`<div class="chips">${SAUCES.map(s=>{const n=c[s]||0;return `<span class="schip ${n?"on":""}">
+     <button type="button" class="sadd" data-sauce="${i}" data-s="${s}" data-d="1" ${full?"disabled":""} aria-label="הוספת ${s}${n?`, נבחרו ${n}`:""}">${s}${n>1?` <i>×${n}</i>`:""}</button>${n?`<button type="button" class="sminus" data-sauce="${i}" data-s="${s}" data-d="-1" aria-label="הורדת ${s}">−</button>`:""}</span>`}).join("")}</div>
+   <p class="hint">${tot?`נבחרו ${tot} מתוך ${CFG.sauceMax}`:`לחיצה מוסיפה רוטב, לחיצה נוספת – עוד אחד מאותו רוטב`}</p>`;
 }
 $("#bBody").addEventListener("click",e=>{const b=e.target.closest("[data-sauce]");if(!b||b.disabled)return;
   const i=+b.dataset.sauce,s=b.dataset.s,c=sauceCnt[i];c[s]=Math.max(0,(c[s]||0)+ +b.dataset.d);if(!c[s])delete c[s];
-  renderSauces(i);const n=$(`#sc${i} [data-s="${s}"][data-d="${b.dataset.d}"]`);n&&!n.disabled&&n.focus()});
+  renderSauces(i);const n=$(`#sc${i} [data-s="${s}"][data-d="${b.dataset.d}"]`)||$(`#sc${i} .sadd[data-s="${s}"]`);n&&!n.disabled&&n.focus()});
 function readBuilder(){
   const K=KINDS[building],sub=[];
   for(let i=0;i<K.burgers;i++){const dr=document.querySelector(`[name="dr${i}"]:checked`);
@@ -567,7 +578,7 @@ $("#adminBtn").onclick=()=>{
   if(window.BHAdmin){BHAdmin.open();return}
   const sc=document.createElement("script");sc.src="admin.js?v="+Date.now();sc.onload=()=>BHAdmin.open();document.body.appendChild(sc);
 };
-if(location.hash==="#admin")$("#adminBtn").click();
+if(location.hash==="#admin")history.replaceState(null,"",location.pathname+location.search);
 </script>
 </body>
 </html>
