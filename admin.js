@@ -85,6 +85,19 @@ async function put(path,b64content,message){
   const r=await tf(`${API}/contents/${path}`,{method:"PUT",headers:H(),body:JSON.stringify(body)});
   if(r.status===401||r.status===403)throw new Error("המפתח של גיטהאב לא תקף או פג תוקף – צריך מפתח חדש (לשונית 'הגדרות')");
   if(!r.ok){let d="";try{d=(await r.json()).message||""}catch(_){}throw new Error("השמירה נכשלה (קוד "+r.status+") "+d)}
+  let j=null;try{j=await r.json()}catch(_){}
+  if(!j||!j.commit||!j.commit.sha||!j.content||!j.content.sha)throw new Error(BLOCKED);
+  return j;
+}
+const BLOCKED="השמירה לא הגיעה לגיטהאב. משהו בדרך (כנראה מסנן אינטרנט בטלפון) חסם אותה. כלום לא נשמר.";
+/* בדיקה עצמאית: קוראים מגיטהאב את הקובץ ומוודאים שזו הגרסה ששמרנו */
+async function verify(path,blobSha){
+  for(let i=0;i<4;i++){
+    const r=await tf(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:H(),cache:"no-store"});
+    if(r.ok){let j=null;try{j=await r.json()}catch(_){}if(j&&j.sha===blobSha)return true}
+    await new Promise(z=>setTimeout(z,1500));
+  }
+  throw new Error("גיטהאב לא מראה את הקובץ ששמרנו – "+BLOCKED);
 }
 const jsonB64=o=>{const bytes=new TextEncoder().encode(JSON.stringify(o,null,2));let s="";bytes.forEach(b=>s+=String.fromCharCode(b));return btoa(s)};
 async function testToken(tok){const r=await tf(API,{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"}});if(!r.ok)return false;const j=await r.json();return !j.permissions||j.permissions.push}
@@ -123,7 +136,7 @@ function setup(changing){
     const okTok=await testToken(tok).catch(e=>{msg(e.message,"err");return null});if(okTok===null)return;if(!okTok)return msg("המפתח לא עובד – בדקו שבחרתם את המאגר ו-Contents: Read and write","err");
     token=tok;
     try{msg("שלב 1 מתוך 2: מצפין את המפתח…");const L=await lock(tok,p1);
-      msg("שלב 2 מתוך 2: שומר בגיטהאב…");await put("admin-lock.json",jsonB64(L),"admin: set password");try{sessionStorage.setItem("bh-tok",token)}catch(_){}
+      msg("שלב 2 מתוך 2: שומר בגיטהאב…");const jl=await put("admin-lock.json",jsonB64(L),"admin: set password");await verify("admin-lock.json",jl.content.sha);try{sessionStorage.setItem("bh-tok",token)}catch(_){}
       msg("נשמר","ok");setTimeout(main,600)}catch(err){msg(err.message,"err")}};
 }
 
@@ -182,7 +195,7 @@ function imgOf(d){return pendingImgs[d.id]||(d.img?d.img:bottle(d))}
 function drinks(){
   B().innerHTML=`<p class="muted">לוחצים על התמונה כדי להחליף. "במלאי" כבוי = מופיע באתר כ"אזל".</p>`+W.drinks.map((d,i)=>`
    <div class="card drk" data-i="${i}"><img src="${esc(imgOf(d))}" alt="תמונת ${esc(d.name)} – לחצו להחלפה" role="button" tabindex="0" class="dImg">
-   <div><label style="margin-top:0">שם</label><input class="dName" value="${esc(d.name)}"></div>
+   <div><label style="margin-top:0">שם</label><input class="dName" value="${esc(d.name)}"><div class="muted">${pendingImgs[d.id]?"⏳ תמונה חדשה – עוד לא נשמרה":d.img?"✓ תמונה שמורה באתר":"בלי תמונה (בקבוק מצויר)"}</div></div>
    <div class="acts"><label class="tog"><input type="checkbox" class="dOn" ${d.on?"checked":""}>במלאי</label>
    <button class="b b-line dPic" type="button">תמונה</button>${d.img||pendingImgs[d.id]?`<button class="b b-line dNoPic" type="button">בלי תמונה</button>`:""}<button class="b b-red dDel" type="button">מחיקה</button></div></div>`).join("")
    +`<button class="b b-line" id="dAdd" style="width:100%;margin-top:12px">+ הוספת משקה</button><input type="file" accept="image/*" id="dFile" hidden>`;
@@ -221,15 +234,18 @@ async function saveAll(){
     const ids=Object.keys(pendingImgs);let n=0;
     for(const id of ids){msg(`מעלה תמונה ${++n} מתוך ${ids.length}…`);
       const path=`img/drinks/${id}-${Date.now().toString(36)}.jpg`;
-      await put(path,pendingImgs[id].split(",")[1],"admin: drink image");
+      const ji=await put(path,pendingImgs[id].split(",")[1],"admin: drink image");
+      msg(`בודק שתמונה ${n} באמת נשמרה…`);await verify(path,ji.content.sha);
       const d=W.drinks.find(x=>x.id===id);if(d)d.img=path;}
     msg("שומר הגדרות…");
-    await put("settings.json",jsonB64({prices:W.prices,schedule:W.schedule,sauceMax:W.sauceMax,drinks:W.drinks,updated:new Date().toISOString()}),"admin: update settings");
+    const js=await put("settings.json",jsonB64({prices:W.prices,schedule:W.schedule,sauceMax:W.sauceMax,drinks:W.drinks,updated:new Date().toISOString()}),"admin: update settings");
+    msg("בודק מול גיטהאב שהשמירה באמת שם…");await verify("settings.json",js.content.sha);
+    var proof=js.commit.sha.slice(0,7);
     // תמונות חדשות זמינות באתר אחרי דקה – בינתיים מציגים את מה שהועלה
     Object.entries(pendingImgs).forEach(([id,u])=>{const d=W.drinks.find(x=>x.id===id);if(d)d._preview=u});
     pendingImgs={};
     CFG=structuredClone(W);CFG.drinks.forEach(d=>{if(d._preview){d.img=d._preview}});W.drinks.forEach(d=>delete d._preview);
-    renderAll();msg("נשמר ✓ הלקוחות יראו את השינוי תוך דקה-שתיים","ok");
+    renderAll();msg(`נשמר ונבדק ✓ גיטהאב אישר (מספר שמירה ${proof}). הלקוחות יראו תוך דקה-שתיים.`,"ok");
   }catch(err){msg(err.message,"err")}
   btn.disabled=false;
 }
