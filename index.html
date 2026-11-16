@@ -172,6 +172,18 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .send{display:grid;gap:10px}
 .btn-wa{background:#25d366;color:#0b2a16}
 .note{font-size:14px;color:var(--straw);text-align:center;margin-top:8px}
+.tk-ic{font-size:56px;text-align:center;margin-top:10px}
+.tk-title{font-family:var(--display);font-weight:400;font-size:28px;text-align:center;margin-top:6px}
+.tk-sub{text-align:center;color:var(--straw);font-weight:600;margin-top:4px}
+.tk-time{font-family:var(--display);font-size:72px;color:var(--yolk);text-align:center;line-height:1.1;margin-top:10px;font-variant-numeric:tabular-nums;direction:ltr}
+.tk-bar{height:10px;border-radius:99px;background:rgba(233,212,173,.12);margin:16px 4px 0;overflow:hidden}
+.tk-bar span{display:block;height:100%;background:var(--yolk);border-radius:99px;transition:width 1s linear}
+.tk-steps{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:22px 0 6px;padding:0}
+.tk-steps li{text-align:center;font-size:14px;font-weight:700;color:var(--straw);padding-top:10px;border-top:4px solid rgba(233,212,173,.15)}
+.tk-steps li.on{color:var(--chalk);border-top-color:var(--yolk)}
+.tk-no{text-align:center;color:var(--straw);font-size:14px;margin-top:12px}
+.trackbar{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:35;display:flex;gap:12px;align-items:center;padding:10px 18px;border-radius:999px;background:var(--yolk);color:var(--char);font-weight:800;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+.trackbar[hidden]{display:none}
 .toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-150%);background:var(--chalk);color:var(--char);font-weight:800;padding:12px 20px;border-radius:12px;z-index:70;transition:transform .3s;box-shadow:0 10px 24px rgba(0,0,0,.5)}
 .toast.on{transform:translate(-50%,0)}
 
@@ -326,6 +338,12 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
   </div>
 </div>
 
+<div class="sheet" id="tracker" role="dialog" aria-modal="true" aria-labelledby="tkTitle">
+  <div class="sh-head"><h2 id="tkTitle">מעקב הזמנה</h2><button class="x" data-close aria-label="סגירה">×</button></div>
+  <div class="sh-body" id="tkBody" aria-live="polite"></div>
+  <div class="sh-foot"><a class="btn btn-ghost" href="tel:0523181539">שאלה על ההזמנה? 052-3181539</a></div>
+</div>
+<button class="trackbar" id="trackBar" hidden><span>🍔 ההזמנה שלי</span><span id="trackBarTxt"></span></button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -452,6 +470,7 @@ document.addEventListener("click",onQty);
 
 /* ---------- חלונות ---------- */
 let lastFocus=null;
+$("#trackBar").onclick=()=>{renderTrack();openSheet("tracker")};
 function openSheet(id){document.querySelectorAll(".sheet.on").forEach(s=>s.classList.remove("on"));if(!lastFocus)lastFocus=document.activeElement;$("#scrim").classList.add("on");const s=$("#"+id);s.classList.add("on");setTimeout(()=>s.querySelector(".x").focus(),50)}
 function closeSheets(){document.querySelectorAll(".sheet.on").forEach(s=>s.classList.remove("on"));$("#scrim").classList.remove("on");lastFocus&&lastFocus.focus();lastFocus=null}
 $("#scrim").onclick=closeSheets;
@@ -554,18 +573,61 @@ function validate(){
 $("#sendWa").onclick=()=>{
   if(!count()){toast("ההזמנה ריקה");return}
   if(!validate())return;
-  let m="🍔 *הזמנה חדשה – בורגר המשק*\n\n";
-  burgers.forEach(b=>{m+=`• *${KINDS[b.kind].n}* – ${ils(priceOf(b))}\n  ${describe(b).replace(/\n/g,"\n  ")}\n`});
-  Object.entries(drinks).forEach(([id,q])=>{m+=`• ${q} × ${drinkById(id).name} – ${ils(CFG.prices.drink*q)}\n`});
-  Object.entries(sides).forEach(([id,q])=>{const s=SIDES.find(x=>x.id===id);m+=`• ${q} × ${s.n}${s.s?" ("+s.s+")":""} – ${ils(CFG.prices.sides[id]*q)}\n`});
-  m+=`\n*סה"כ: ${ils(total())}*\n`;
-  m+=`תשלום: ${document.querySelector('[name="pay"]:checked').value}\n\n`;
-  m+=`שם: ${$("#name").value.trim()}\nטלפון: ${$("#phone").value.trim()}\n`;
-  m+=isDelivery()?`משלוח ל: ${$("#town").value}, ${$("#addr").value.trim()}\n`:`איסוף עצמי\n`;
-  if($("#time").value.trim())m+=`שעה רצויה: ${$("#time").value.trim()}\n`;
-  if($("#notes").value.trim())m+=`הערות: ${$("#notes").value.trim()}\n`;
+  // שורות ההזמנה – משמשות גם לוואטסאפ וגם למעקב
+  const lines=[];
+  burgers.forEach(b=>lines.push(`${KINDS[b.kind].n} – ${ils(priceOf(b))}\n${describe(b)}`));
+  Object.entries(drinks).forEach(([id,q])=>lines.push(`${q} × ${drinkById(id).name} – ${ils(CFG.prices.drink*q)}`));
+  Object.entries(sides).forEach(([id,q])=>{const s=SIDES.find(x=>x.id===id);lines.push(`${q} × ${s.n}${s.s?" ("+s.s+")":""} – ${ils(CFG.prices.sides[id]*q)}`)});
+  const o={lines,total:total(),pay:document.querySelector('[name="pay"]:checked').value,name:$("#name").value.trim(),phone:$("#phone").value.trim(),
+    how:isDelivery()?"משלוח":"איסוף עצמי",town:isDelivery()?$("#town").value:"",addr:isDelivery()?$("#addr").value.trim():"",time:$("#time").value.trim(),notes:$("#notes").value.trim()};
+  // מספר הזמנה (נוצר מיד, בלי לחכות לשרת)
+  let id=null;
+  if(window.FS&&window.FDB){try{id=FS.doc(FS.collection(FDB,"orders")).id}catch(e){}}
+  let m=`🍔 *הזמנה חדשה – בורגר המשק*${id?` (#${id.slice(0,5).toUpperCase()})`:""}\n\n`;
+  lines.forEach(l=>{const [h,...rest]=l.split("\n");m+=`• *${h}*\n${rest.map(x=>"  "+x).join("\n")}${rest.length?"\n":""}`});
+  m+=`\n*סה"כ: ${ils(o.total)}*\nתשלום: ${o.pay}\n\nשם: ${o.name}\nטלפון: ${o.phone}\n`;
+  m+=o.how==="משלוח"?`משלוח ל: ${o.town}, ${o.addr}\n`:`איסוף עצמי\n`;
+  if(o.time)m+=`שעה רצויה: ${o.time}\n`;
+  if(o.notes)m+=`הערות: ${o.notes}\n`;
+  if(id)m+=`\nלאישור ההזמנה וזמן הכנה:\n${location.origin+location.pathname}#manage`;
   window.open(`https://wa.me/${PHONE_WA}?text=${encodeURIComponent(m)}`,"_blank");
+  if(id){
+    FS.setDoc(FS.doc(FDB,"orders",id),{...o,status:"new",createdAt:FS.serverTimestamp()})
+      .then(()=>{try{localStorage.setItem("bh-order",JSON.stringify({id,at:Date.now()}))}catch(e){}
+        burgers=[];sides={};drinks={};update();renderLists();closeSheets();track(id);openSheet("tracker")})
+      .catch(e=>{console.warn(e);toast("ההזמנה נשלחה בוואטסאפ")});
+  }
 };
+
+/* ---------- מעקב הזמנה ללקוח ---------- */
+let trackUnsub=null,trackTick=null,trackData=null;
+const ST={new:["⏳","ההזמנה נשלחה","מחכים לאישור של בורגר המשק"],accepted:["🔥","ההזמנה אושרה ובהכנה",""],
+  out:["🛵","ההזמנה בדרך אליך!","השליח יצא – עוד מעט אצלך"],ready:["✅","ההזמנה מוכנה לאיסוף!","מחכה לך אצלנו"],
+  done:["🍔","בתאבון!","תודה שהזמנת מבורגר המשק"],rejected:["✖","ההזמנה בוטלה",`לפרטים: ${PHONE_SHOW}`]};
+function track(id){
+  if(!window.FS||!window.FDB)return;
+  if(trackUnsub)trackUnsub();
+  trackUnsub=FS.onSnapshot(FS.doc(FDB,"orders",id),snap=>{if(!snap.exists())return;trackData={id,...snap.data()};renderTrack()},()=>{});
+  clearInterval(trackTick);trackTick=setInterval(renderTrack,1000);
+}
+function renderTrack(){
+  const d=trackData;if(!d)return;
+  const [ic,title,sub]=ST[d.status]||ST.new;
+  let mid="",bar="";
+  if(d.status==="accepted"&&d.readyAt){
+    const left=Math.max(0,Math.round((d.readyAt.toMillis()-Date.now())/1000)),tot=Math.max(60,(d.minutes||20)*60);
+    const mm=Math.floor(left/60),ss=String(left%60).padStart(2,"0");
+    mid=left>0?`<div class="tk-time" aria-live="off">${mm}:${ss}</div><p class="tk-sub">עד שההזמנה מוכנה${d.how==="משלוח"?" ויוצאת אליך":""}</p>`:`<p class="tk-sub">עוד רגע מוכנה…</p>`;
+    bar=`<div class="tk-bar"><span style="width:${Math.min(100,100-left/tot*100)}%"></span></div>`;
+  }
+  const steps=["new","accepted",d.how==="משלוח"?"out":"ready","done"],cur=Math.max(0,steps.indexOf(d.status));
+  $("#tkBody").innerHTML=`<div class="tk-ic" aria-hidden="true">${ic}</div><h3 class="tk-title">${title}</h3>${sub?`<p class="tk-sub">${sub}</p>`:""}${mid}${bar}
+    ${d.status!=="rejected"?`<ol class="tk-steps">${["נשלחה","בהכנה",d.how==="משלוח"?"בדרך":"מוכנה","נמסרה"].map((t,i)=>`<li class="${i<=cur?"on":""}">${t}</li>`).join("")}</ol>`:""}
+    <p class="tk-no">הזמנה #${d.id.slice(0,5).toUpperCase()} · ${ils(d.total)}</p>`;
+  const tb=$("#trackBar");tb.hidden=["done","rejected"].includes(d.status)&&!$("#tracker").classList.contains("on");
+  $("#trackBarTxt").textContent=d.status==="accepted"&&d.readyAt?`מוכנה בעוד ${Math.max(0,Math.ceil((d.readyAt.toMillis()-Date.now())/60000))} דק'`:title;
+  if(["done","rejected"].includes(d.status)){try{localStorage.removeItem("bh-order")}catch(e){}}
+}
 let tt;function toast(s){const t=$("#toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),2000)}
 
 /* ---------- טעינת הגדרות ---------- */
@@ -579,6 +641,8 @@ fetch("settings.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():nu
   const V="https://www.gstatic.com/firebasejs/11.0.2/";
   const [app,fs]=await Promise.all([import(V+"firebase-app.js"),import(V+"firebase-firestore.js")]);
   const a=app.getApps().length?app.getApp():app.initializeApp(FIREBASE_CONFIG);const db=fs.getFirestore(a);
+  window.FS=fs;window.FDB=db;
+  try{const o=JSON.parse(localStorage.getItem("bh-order")||"null");if(o&&Date.now()-o.at<12*3600e3){track(o.id);$("#trackBar").hidden=false}}catch(e){}
   fs.onSnapshot(fs.doc(db,"site","settings"),async snap=>{
     if(!snap.exists())return;liveOK=true;const s=snap.data();
     const need=(s.drinks||[]).map(d=>d.img||"").filter(i=>i.startsWith("fs:")&&!IMGS[i.slice(3)]).map(i=>i.slice(3));
@@ -593,6 +657,7 @@ $("#adminBtn").onclick=()=>{
   const sc=document.createElement("script");sc.src="admin.js?v="+Date.now();sc.onload=()=>BHAdmin.open();document.body.appendChild(sc);
 };
 if(location.hash==="#admin")history.replaceState(null,"",location.pathname+location.search);
+if(location.hash==="#manage"){history.replaceState(null,"",location.pathname+location.search);window.BH_START_TAB="orders";$("#adminBtn").click()}
 </script>
 </body>
 </html>

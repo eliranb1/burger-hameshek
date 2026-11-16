@@ -8,7 +8,7 @@
 const MANAGER_EMAIL="manager@burger-hameshek.app";
 const DAYS=["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const $=s=>document.querySelector(s);
-let W=null, pendingImgs={}, tab="days", FB=null;
+let W=null, pendingImgs={}, tab=window.BH_START_TAB||"orders", FB=null, ordersUnsub=null, ORD=[], seen=null;
 
 const css=`
 .adm[hidden],.adm-scrim[hidden]{display:none!important}
@@ -28,7 +28,7 @@ const css=`
 .adm .b-main{background:#24170e;color:#f2b632;width:100%}
 .adm .b-line{background:#fff;border:1.5px solid #24170e;color:#24170e}
 .adm .b-red{background:#fff;border:1.5px solid #b8321f;color:#b8321f}
-.adm .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px;background:#efe3cd;border-bottom:1px solid #d9c7a8}
+.adm .tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:8px 10px;background:#efe3cd;border-bottom:1px solid #d9c7a8}
 .adm .tabs button{min-height:42px;border-radius:8px;font-weight:800;color:#5a4330}
 .adm .tabs button[aria-selected=true]{background:#24170e;color:#f2b632}
 .adm .card{background:#fff;border:1px solid #e0cfb1;border-radius:12px;padding:12px 14px;margin-top:12px}
@@ -47,6 +47,17 @@ const css=`
 .adm .msg.err{color:#b8321f}.adm .msg.ok{color:#2e6b3a}
 .adm .steps{padding-inline-start:20px;line-height:1.7;font-size:15.5px}
 .adm .changed{border-color:#f2b632;box-shadow:0 0 0 2px #f2b632}
+.adm .ord{border-inline-start:6px solid #cdb68f}
+.adm .ord.s-new{border-inline-start-color:#b8321f;background:#fff4f1}
+.adm .ord.s-accepted{border-inline-start-color:#f2b632}
+.adm .ord.s-out,.adm .ord.s-ready{border-inline-start-color:#2e6b3a}
+.adm .ord.s-done,.adm .ord.s-rejected{opacity:.55}
+.adm .ord h3{font-size:18px;font-weight:800;display:flex;justify-content:space-between;gap:8px}
+.adm .ord pre{white-space:pre-wrap;font:inherit;font-size:15.5px;margin:8px 0;background:#f7efe1;border-radius:8px;padding:8px 10px}
+.adm .ord .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.adm .ord .acts .b{min-height:44px;padding:0 12px}
+.adm .ord .tag{font-size:14px;font-weight:800;padding:2px 10px;border-radius:99px;background:#24170e;color:#f2b632;white-space:nowrap}
+.adm .ord a{color:#24170e;font-weight:800}
 `;
 const st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
 
@@ -74,6 +85,7 @@ async function fb(){
 
 /* ---------- כניסה ---------- */
 async function open(){
+  if(window.BH_START_TAB){tab=window.BH_START_TAB;window.BH_START_TAB=null}
   pan.hidden=false;scrim.hidden=false;T().innerHTML="";F().innerHTML="";
   B().innerHTML=`<p class="muted">טוען…</p>`;
   try{const {auth,A}=await fb();
@@ -96,12 +108,57 @@ async function main(){
   // פעם ראשונה: אם אין עדיין הגדרות ב-Firebase – מעלים את מה שיש באתר
   try{const {db,F}=await fb();const s=await F.getDoc(F.doc(db,"site","settings"));
     if(!s.exists()){await F.setDoc(F.doc(db,"site","settings"),pack(W));}}catch(e){}
-  T().innerHTML=`<div class="tabs" role="tablist">${[["days","ימי פתיחה"],["prices","מחירים"],["drinks","שתייה"],["more","הגדרות"]].map(([k,n])=>`<button role="tab" data-tab="${k}" aria-selected="${k===tab}">${n}</button>`).join("")}</div>`;
+  T().innerHTML=`<div class="tabs" role="tablist">${[["orders","הזמנות"],["days","ימי פתיחה"],["prices","מחירים"],["drinks","שתייה"],["more","הגדרות"]].map(([k,n])=>`<button role="tab" data-tab="${k}" aria-selected="${k===tab}">${n}</button>`).join("")}</div>`;
   T().onclick=e=>{const b=e.target.closest("[data-tab]");if(!b)return;collect();tab=b.dataset.tab;main2()};
   F().innerHTML=`<button class="b b-main" id="aSave">שמירה ופרסום באתר</button><div class="msg"></div>`;
-  $("#aSave").onclick=saveAll;main2();
+  $("#aSave").onclick=saveAll;listenOrders();main2();
 }
-function main2(){T().querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));({days,prices,drinks,more})[tab]()}
+function main2(){T().querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));F().hidden=tab==="orders";({orders,days,prices,drinks,more})[tab]()}
+
+/* ---------- הזמנות ---------- */
+const SNAME={new:"חדשה",accepted:"בהכנה",out:"בדרך",ready:"מוכנה לאיסוף",done:"נמסרה",rejected:"בוטלה"};
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)();[0,.25,.5].forEach(t=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.3,c.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+t+.2);o.start(c.currentTime+t);o.stop(c.currentTime+t+.22)});navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+async function listenOrders(){
+  if(ordersUnsub)return;const {db,F}=await fb();
+  const q=F.query(F.collection(db,"orders"),F.orderBy("createdAt","desc"),F.limit(40));
+  ordersUnsub=F.onSnapshot(q,snap=>{
+    ORD=snap.docs.map(d=>({id:d.id,...d.data()})).filter(o=>!o.createdAt||Date.now()-o.createdAt.toMillis()<36*3600e3);
+    const ids=new Set(ORD.filter(o=>o.status==="new").map(o=>o.id));
+    if(seen&&[...ids].some(i=>!seen.has(i)))beep();seen=ids;
+    const n=ids.size,tb=T().querySelector('[data-tab="orders"]');if(tb)tb.textContent=n?`הזמנות (${n})`:"הזמנות";
+    if(tab==="orders"&&!pan.hidden)orders();
+  },e=>{if(tab==="orders")B().innerHTML=`<p class="msg err">לא הצלחתי לטעון הזמנות: ${esc(e.code||e.message)}</p>`});
+}
+const hm=t=>t?t.toDate().toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jerusalem"}):"";
+function orders(){
+  if(!ORD.length){B().innerHTML=`<p class="muted" style="margin-top:20px;text-align:center">עוד אין הזמנות. כשתיכנס הזמנה – היא תופיע כאן עם צלצול.</p>`;return}
+  B().innerHTML=ORD.map(o=>{
+    const left=o.readyAt?Math.ceil((o.readyAt.toMillis()-Date.now())/60000):null;
+    let acts="";
+    if(o.status==="new")acts=`<span class="muted" style="width:100%">אישור – מוכן בעוד:</span>${[10,15,20,30,45,60].map(m=>`<button class="b b-main" style="width:auto" data-o="${o.id}" data-a="acc" data-m="${m}">${m} דק'</button>`).join("")}<button class="b b-red" data-o="${o.id}" data-a="rej">ביטול</button>`;
+    else if(o.status==="accepted")acts=`<button class="b b-line" data-o="${o.id}" data-a="ext" data-m="5">+5 דק'</button><button class="b b-line" data-o="${o.id}" data-a="ext" data-m="10">+10 דק'</button><button class="b b-main" style="width:auto" data-o="${o.id}" data-a="${o.how==="משלוח"?"out":"ready"}">${o.how==="משלוח"?"יצא למשלוח 🛵":"מוכן לאיסוף ✅"}</button><button class="b b-red" data-o="${o.id}" data-a="rej">ביטול</button>`;
+    else if(o.status==="out"||o.status==="ready")acts=`<button class="b b-main" style="width:auto" data-o="${o.id}" data-a="done">נמסר ✓</button>`;
+    return `<div class="card ord s-${o.status}"><h3><span>#${o.id.slice(0,5).toUpperCase()} · ${hm(o.createdAt)}</span><span class="tag">${SNAME[o.status]||o.status}${o.status==="accepted"&&left!==null?` · עוד ${Math.max(0,left)} דק'`:""}</span></h3>
+      <div><b>${esc(o.name)}</b> · <a href="tel:${esc(o.phone)}">${esc(o.phone)}</a></div>
+      <div>${o.how==="משלוח"?`🛵 ${esc(o.town)}, ${esc(o.addr)}`:"🏠 איסוף עצמי"}${o.time?` · שעה רצויה ${esc(o.time)}`:""}</div>
+      <pre>${esc((o.lines||[]).join("\n"))}</pre>
+      <div><b>סה"כ ${o.total} ₪</b> · ${esc(o.pay)}${o.notes?`<br>הערות: ${esc(o.notes)}`:""}</div>
+      <div class="acts">${acts}</div></div>`}).join("");
+}
+let rejArm=null;
+pan.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-a]");if(!b||!pan.contains(b))return;
+  const {db,F}=await fb(),ref=F.doc(db,"orders",b.dataset.o),o=ORD.find(x=>x.id===b.dataset.o),a=b.dataset.a,m=+b.dataset.m;
+  if(a==="rej"&&rejArm!==b.dataset.o){rejArm=b.dataset.o;b.textContent="בטוח? לחץ שוב";return}
+  const now=Date.now(),upd=
+    a==="acc"?{status:"accepted",minutes:m,readyAt:F.Timestamp.fromMillis(now+m*60000)}:
+    a==="ext"?{minutes:(o.minutes||0)+m,readyAt:F.Timestamp.fromMillis(Math.max(now,o.readyAt?o.readyAt.toMillis():now)+m*60000)}:
+    {status:a==="rej"?"rejected":a};
+  b.disabled=true;
+  try{await F.updateDoc(ref,upd)}catch(err){b.disabled=false;alertMsg("לא נשמר: "+(err.code||err.message))}
+});
+function alertMsg(t){const d=document.createElement("p");d.className="msg err";d.textContent=t;B().prepend(d)}
+setInterval(()=>{if(!pan.hidden&&tab==="orders"&&ORD.some(o=>o.status==="accepted"))orders()},30000);
 
 /* ימי פתיחה */
 const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
