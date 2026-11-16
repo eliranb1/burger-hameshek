@@ -1,0 +1,76 @@
+{
+  "prices": {
+    "kinds": {
+      "single": 45,
+      "meal": 60,
+      "couple": 110
+    },
+    "extras": {
+      "patty": 15,
+      "mush": 5,
+      "egg": 5,
+      "onion": 3
+    },
+    "sides": {
+      "fries": 10,
+      "rings": 15,
+      "mix": 15,
+      "mash": 18,
+      "pastel": 18,
+      "eggroll": 18,
+      "schnitz": 25
+    },
+    "drink": 10
+  },
+  "schedule": {
+    "day": 4,
+    "from": "18:30",
+    "to": "23:00",
+    "weeks": {}
+  },
+  "sauceMax": 3,
+  "drinks": [
+    {
+      "id": "cola",
+      "name": "קולה",
+      "img": "",
+      "on": true
+    },
+    {
+      "id": "zero",
+      "name": "קולה זירו",
+      "img": "",
+      "on": true
+    },
+    {
+      "id": "fanta",
+      "name": "פאנטה",
+      "img": "",
+      "on": true
+    },
+    {
+      "id": "sprite",
+      "name": "ספרייט",
+      "img": "",
+      "on": true
+    },
+    {
+      "id": "grape",
+      "name": "ענבים",
+      "img": "",
+      "on": true
+    },
+    {
+      "id": "water",
+      "name": "מים",
+      "img": "",
+      "on": true
+    },
+    {
+      "id": "soda",
+      "name": "סודה",
+      "img": "",
+      "on": true
+    }
+  ]
+}
