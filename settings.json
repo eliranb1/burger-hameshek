@@ -33,37 +33,37 @@
     {
       "id": "cola",
       "name": "קולה",
-      "img": "img/drinks/cola-mwjq24g7.jpg",
+      "img": "img/drinks/cola-mwjqk77j.jpg",
       "on": true
     },
     {
       "id": "zero",
       "name": "קולה זירו",
-      "img": "",
+      "img": "img/drinks/zero-mwjqk9do.jpg",
       "on": true
     },
     {
       "id": "fanta",
       "name": "פאנטה",
-      "img": "",
+      "img": "img/drinks/fanta-mwjqkbkv.jpg",
       "on": true
     },
     {
       "id": "sprite",
       "name": "ספרייט",
-      "img": "",
+      "img": "img/drinks/sprite-mwjqkds2.jpg",
       "on": true
     },
     {
       "id": "grape",
       "name": "ענבים",
-      "img": "",
+      "img": "img/drinks/grape-mwjqkfsg.jpg",
       "on": true
     },
     {
       "id": "water",
       "name": "מים",
-      "img": "",
+      "img": "img/drinks/water-mwjqkhlo.jpg",
       "on": true
     },
     {
@@ -73,5 +73,5 @@
       "on": true
     }
   ],
-  "updated": "2026-11-16T20:34:33.858Z"
+  "updated": "2026-11-16T20:48:50.751Z"
 }
