@@ -83,7 +83,8 @@ async function shaOf(path){const r=await tf(`${API}/contents/${path}?ref=main&t=
 async function put(path,b64content,message){
   const sha=await shaOf(path);const body={message,content:b64content,branch:"main"};if(sha)body.sha=sha;
   const r=await tf(`${API}/contents/${path}`,{method:"PUT",headers:H(),body:JSON.stringify(body)});
-  if(r.status===401||r.status===403)throw new Error("המפתח של גיטהאב לא תקף או פג תוקף – צריך מפתח חדש (לשונית 'הגדרות')");
+  if(r.status===401||r.status===403){let d="";try{d=(await r.json()).message||""}catch(_){}
+    throw new Error(r.status===403?"גיטהאב סירב: למפתח אין הרשאת כתיבה למאגר ("+d+"). צריך במפתח: Repository access ← burger-hameshek, ו-Contents ← Read and write":"גיטהאב לא מכיר את המפתח ("+d+") – צריך מפתח חדש (לשונית 'הגדרות')")}
   if(!r.ok){let d="";try{d=(await r.json()).message||""}catch(_){}throw new Error("השמירה נכשלה (קוד "+r.status+") "+d)}
   let j=null;try{j=await r.json()}catch(_){}
   if(!j||!j.commit||!j.commit.sha||!j.content||!j.content.sha)throw new Error(BLOCKED);
@@ -220,9 +221,27 @@ function shrink(file){return new Promise((res,rej)=>{const img=new Image();img.o
 function more(){
   B().innerHTML=`<div class="card"><label for="mSauce" style="margin-top:0">כמה רטבים מותר למנה</label><input id="mSauce" type="number" min="1" max="10" value="${W.sauceMax}"></div>
   <div class="card"><b>סיסמה ומפתח</b><p class="muted">החלפת סיסמת המנהל, או הכנסת מפתח גיטהאב חדש כשהישן פג.</p><button class="b b-line" id="mPw" style="margin-top:8px">החלפת סיסמה / מפתח</button></div>
+  <div class="card"><b>בדיקת חיבור לגיטהאב</b><p class="muted">בודק צעד-צעד אם אפשר לשמור, ומראה מה גיטהאב עונה.</p><button class="b b-line" id="mDiag" style="margin-top:8px">הרצת בדיקה</button><pre id="diag" style="white-space:pre-wrap;font-size:14px;margin-top:8px;direction:rtl"></pre></div>
   <div class="card"><button class="b b-line" id="mOut">יציאה מהניהול</button></div>`;
+  $("#mDiag").onclick=diag;
   $("#mPw").onclick=()=>{T().innerHTML="";F().innerHTML="";setup(true)};
   $("#mOut").onclick=()=>{token=null;try{sessionStorage.removeItem("bh-tok")}catch(_){}close()};
+}
+async function diag(){
+  const out=$("#diag"),line=t=>{out.textContent+=t+"\n"};out.textContent="";
+  const step=async(name,fn)=>{const t0=Date.now();line("⏳ "+name+"…");
+    try{const r=await fn();let body="";try{body=(await r.clone().json()).message||""}catch(_){}
+      line(`${r.ok?"✓":"✗"} ${name}: קוד ${r.status}${body?" – "+body:""} (${((Date.now()-t0)/1000).toFixed(1)} שנ')`);return r}
+    catch(e){line(`✗ ${name}: ${e.message} (${((Date.now()-t0)/1000).toFixed(1)} שנ')`);return null}};
+  line("מפתח: "+(token?token.slice(0,15)+"…":"אין"));
+  await step("1. קריאה בלי מפתח",()=>tf(API));
+  await step("2. קריאה עם המפתח",()=>tf(API,{headers:H()}));
+  const p="diag-test.txt";
+  const g=await step("3. בדיקת קובץ בדיקה",()=>tf(`${API}/contents/${p}?ref=main&t=${Date.now()}`,{headers:H(),cache:"no-store"}));
+  let sha=null;try{if(g&&g.ok)sha=(await g.json()).sha}catch(_){}
+  const body={message:"admin: connection test",content:btoa(new Date().toISOString()),branch:"main"};if(sha)body.sha=sha;
+  const w=await step("4. כתיבה לגיטהאב",()=>tf(`${API}/contents/${p}`,{method:"PUT",headers:H(),body:JSON.stringify(body)}));
+  if(w&&w.ok){let j=null;try{j=await w.json()}catch(_){}line(j&&j.commit?"✓ גיטהאב אישר שמירה "+j.commit.sha.slice(0,7)+" – הכתיבה עובדת!":"✗ התשובה לא מגיטהאב – משהו בדרך חוסם")}
 }
 function collectMore(){const m=$("#mSauce");if(m){const v=parseInt(m.value,10);if(v>0)W.sauceMax=v}}
 function collect(){collectDays();collectPrices();collectDrinks();collectMore()}
