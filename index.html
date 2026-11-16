@@ -15,10 +15,19 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Suez+One&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/assistant-hebrew-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face{font-family:'Assistant';font-weight:400;font-display:swap;src:url(fonts/assistant-hebrew-400-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:'Assistant';font-weight:400;font-display:swap;src:url(fonts/assistant-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122}
+@font-face{font-family:'Assistant';font-weight:600;font-display:swap;src:url(fonts/assistant-hebrew-600-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:'Assistant';font-weight:600;font-display:swap;src:url(fonts/assistant-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122}
+@font-face{font-family:'Assistant';font-weight:700;font-display:swap;src:url(fonts/assistant-hebrew-700-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:'Assistant';font-weight:700;font-display:swap;src:url(fonts/assistant-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122}
+@font-face{font-family:'Assistant';font-weight:800;font-display:swap;src:url(fonts/assistant-hebrew-800-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:'Assistant';font-weight:800;font-display:swap;src:url(fonts/assistant-latin-800-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122}
+@font-face{font-family:'Suez One';font-display:swap;src:url(fonts/suez-one-hebrew-400-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:'Suez One';font-display:swap;src:url(fonts/suez-one-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F}
+
 :root{
   --char:#1f140c;      /* עץ חרוך – רקע */
   --char-2:#2c1d12;
@@ -225,6 +234,10 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .paynote{font-size:14.5px;color:var(--straw);margin-top:8px;font-weight:600}
 .week-note[hidden]{display:none}
 .week-note{display:block;max-width:560px;margin:10px auto 0;padding:10px 16px;border-radius:12px;background:var(--ember);color:#fff;font-weight:800}
+.linkbtn{background:none;color:inherit;text-decoration:underline;font:inherit;font-weight:700;padding:4px 2px;min-height:24px}
+.page h3{font-family:var(--display);font-weight:400;font-size:20px;color:var(--yolk);margin:16px 0 4px}
+.page p,.page li{line-height:1.7;color:var(--chalk)}
+.page ul{padding-inline-start:20px}
 .admin-link{background:none;color:var(--straw);text-decoration:underline;font-size:13px;margin-top:10px}
 </style>
 </head>
@@ -283,9 +296,10 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 </main>
 
 <footer class="wrap">
-  בורגר המשק · כשר, בשר חלק, ירק מהדרין<br>
+  <span id="bizLine">בורגר המשק</span> · כשר, בשר חלק, ירק מהדרין<br>
   <span id="footHours">ימי חמישי 18:30–23:00</span><br>
   הזמנות ומשלוחים: <a href="tel:0523181539">052-3181539</a><br>
+  <button class="linkbtn" data-page="a11y">הצהרת נגישות</button> · <button class="linkbtn" data-page="privacy">מדיניות פרטיות</button><br>
   <button class="admin-link" id="adminBtn">כניסת מנהל</button> · <button class="admin-link" id="courierBtn">כניסת שליח</button>
 </footer>
 
@@ -332,10 +346,11 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
         <div class="field" id="f-addr"><label for="addr">כתובת</label><input id="addr" autocomplete="street-address" placeholder="רחוב, מספר בית"><div class="err">צריך כתובת למשלוח</div></div>
       </div>
       <div class="row2">
-        <div class="field" id="f-date"><label for="odate">ליום</label><select id="odate"></select><div class="err">אין יום פעילות פתוח להזמנה</div></div>
+        <div class="field" id="f-date"><label for="odate">ליום</label><select id="odate"></select><div class="err">צריך לבחור יום ושעה פנויים</div></div>
         <div class="field"><label for="oslot">שעה</label><select id="oslot"></select></div>
       </div>
       <p class="paynote" id="dateNote"></p>
+      <p class="paynote">השם, הטלפון והכתובת משמשים רק לטיפול בהזמנה ובמשלוח, ונמחקים אחרי 90 יום. לא נשלח לכם פרסומות. <button type="button" class="linkbtn" data-page="privacy">מדיניות פרטיות</button></p>
       <fieldset><legend>אמצעי תשלום</legend>
         <div class="pay">
           <label class="chip"><input type="radio" name="pay" value="מזומן" checked><span><span class="logo l-cash">₪</span>מזומן</span></label>
@@ -360,6 +375,10 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
   <div class="sh-foot"><a class="btn btn-ghost" href="tel:0523181539">שאלה על ההזמנה? 052-3181539</a></div>
 </div>
 <button class="trackbar" id="trackBar" hidden><span>🍔 ההזמנה שלי</span><span id="trackBarTxt"></span></button>
+<div class="sheet" id="pageSheet" role="dialog" aria-modal="true" aria-labelledby="pgTitle">
+  <div class="sh-head"><h2 id="pgTitle"></h2><button class="x" data-close aria-label="סגירה">×</button></div>
+  <div class="sh-body page" id="pgBody"></div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -381,6 +400,10 @@ const DEFAULTS = {
   schedule:{ day:4, from:"18:30", to:"23:00", weeks:{} },
   sauceMax:3,
   ops:{approvePickup:false,earlyPickup:false},
+  closed:null,
+  hide:{kinds:[],extras:[],sides:[],sauces:[]},
+  limit:{mode:"off",per:6},
+  biz:{},
   drinks:[
     {id:"cola",name:"קולה",img:"",on:true},{id:"zero",name:"קולה זירו",img:"",on:true},
     {id:"fanta",name:"פאנטה",img:"",on:true},{id:"sprite",name:"ספרייט",img:"",on:true},
@@ -410,6 +433,9 @@ function bottle(d){
 }
 const drinkImg=d=>!d.img?bottle(d):d.img.startsWith("fs:")?(IMGS[d.img.slice(3)]||bottle(d)):d.img;
 const drinkById=id=>CFG.drinks.find(d=>d.id===id);
+const hidden=(g,id)=>((CFG.hide||{})[g]||[]).includes(id);
+const sauceList=()=>SAUCES.filter(x=>!hidden("sauces",x));
+const closedToday=()=>CFG.closed&&CFG.closed.date===ymd(ilNow());
 const drinksOn=()=>CFG.drinks.filter(d=>d.on);
 
 /* ---------- זמן ישראל ולוח פתיחה ---------- */
@@ -428,6 +454,9 @@ const toMin=t=>{const[h,m]=t.split(":").map(Number);return h*60+(m||0)};
 function renderStatus(){
   const now=ilNow(), ws=weekStart(now), S=CFG.schedule;
   $("#weekNote").hidden=true;$("#status").classList.remove("open");
+  if(closedToday()){const nx=upcomingOpenings()[0],w=$("#weekNote");w.hidden=false;
+    w.textContent=(CFG.closed.msg||"נסגרנו להיום – תודה לכולם!")+(nx?` · נפתח שוב ${fmtDay(nx.date,false)} ב-${nx.from} – אפשר כבר להזמין מראש`:"");
+    $("#statusText").textContent=nx?`הפתיחה הבאה: ${fmtDay(nx.date,false)}, ${nx.from}–${nx.to}`:"סגורים כרגע";$("#hoursFact").textContent=`ימי ${DAYS[S.day]} ${S.from}–${S.to}`;return}
   const def=`ימי ${DAYS[S.day]} ${S.from}–${S.to}`;
   $("#footHours").textContent=def;
   let op=openingForWeek(ws), next=null;
@@ -456,7 +485,7 @@ function renderStatus(){
 function upcomingOpenings(){
   const now=ilNow(),ws=weekStart(now),out=[],nowMin=now.getHours()*60+now.getMinutes();
   for(let i=0;i<5;i++){const w=new Date(ws);w.setDate(ws.getDate()+7*i);const op=openingForWeek(w);if(!op)continue;
-    const key=ymd(op.date);if(key<ymd(now))continue;if(key===ymd(now)&&nowMin>=toMin(op.to)-10)continue;
+    const key=ymd(op.date);if(key<ymd(now))continue;if(key===ymd(now)&&closedToday())continue;if(key===ymd(now)&&nowMin>=toMin(op.to)-10)continue;
     out.push({...op,key,today:key===ymd(now)})}
   return out.slice(0,4);
 }
@@ -466,16 +495,27 @@ function fillDates(){
   sel.innerHTML=ops.map(o=>`<option value="${o.key}">${fmtDay(o.date,o.today)}</option>`).join("");
   if(ops.some(o=>o.key===prev))sel.value=prev;fillSlots();
 }
-function fillSlots(){
-  const op=upcomingOpenings().find(o=>o.key===$("#odate").value),sel=$("#oslot");
+/* עומס לפי רבע שעה: slots/{date} = {"19:00": 4, ...} */
+const SLOTCNT={};
+const hhmm=m=>`${String(Math.floor(m/60)%24).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+function asapKey(op){const n=ilNow(),nm=n.getHours()*60+n.getMinutes();return hhmm(Math.max(toMin(op.from),Math.floor(nm/15)*15))}
+function units(){const L=CFG.limit||{};return L.mode==="burgers"?burgers.reduce((a,b)=>a+KINDS[b.kind].burgers,0)||1:1}
+function loadSlots(date){if(!window.FS||!window.FDB||!(CFG.limit&&CFG.limit.mode&&CFG.limit.mode!=="off"))return;
+  FS.getDocFromServer(FS.doc(FDB,"slots",date)).then(d=>{SLOTCNT[date]=d.exists()?d.data():{};if($("#odate").value===date)fillSlots(true)}).catch(()=>{})}
+function fillSlots(fromLoad){
+  const op=upcomingOpenings().find(o=>o.key===$("#odate").value),sel=$("#oslot"),prev=sel.value;
   if(!op){sel.innerHTML="";$("#dateNote").textContent="";return}
+  if(!fromLoad)loadSlots(op.key);
+  const L=CFG.limit||{},on=L.mode&&L.mode!=="off",cnt=SLOTCNT[op.key]||{},need=units(),full=k=>on&&(cnt[k]||0)+need>(+L.per||6);
   const now=ilNow(),nowMin=now.getHours()*60+now.getMinutes();let start=toMin(op.from),end=toMin(op.to);
   let opts=[];
-  if(op.today&&nowMin>=start-30)opts.push(`<option value="ASAP">כמה שיותר מוקדם</option>`);
+  if(op.today&&nowMin>=start-30){const k=asapKey(op);opts.push(`<option value="ASAP" ${full(k)?"disabled":""}>כמה שיותר מוקדם${full(k)?" (מלא)":""}</option>`)}
   if(op.today)start=Math.max(start,Math.ceil((nowMin+30)/15)*15);
-  for(let m=start;m<=end-15;m+=15){const h=String(Math.floor(m/60)%24).padStart(2,"0"),mm=String(m%60).padStart(2,"0");opts.push(`<option value="${h}:${mm}">${h}:${mm}</option>`)}
-  sel.innerHTML=opts.join("")||`<option value="ASAP">כמה שיותר מוקדם</option>`;
-  $("#dateNote").textContent=op.today?"":`הזמנה מראש ל${fmtDay(op.date,false)}, לשעה שבחרתם`;
+  for(let m=start;m<=end-15;m+=15){const k=hhmm(m),f=full(k);opts.push(`<option value="${k}" ${f?"disabled":""}>${k}${f?" (מלא)":""}</option>`)}
+  sel.innerHTML=opts.join("")||`<option value="">אין שעות פנויות ביום הזה</option>`;
+  const free=[...sel.options].find(o=>!o.disabled&&o.value===prev)||[...sel.options].find(o=>!o.disabled);if(free)sel.value=free.value;
+  const allFull=![...sel.options].some(o=>!o.disabled&&o.value);
+  $("#dateNote").textContent=allFull?"כל השעות ביום הזה מלאות – אפשר לבחור יום אחר":op.today?"":`הזמנה מראש ל${fmtDay(op.date,false)}, לשעה שבחרתם`;
 }
 document.addEventListener("change",e=>{if(e.target.id==="odate")fillSlots()});
 
@@ -484,20 +524,21 @@ let burgers=[], sides={}, drinks={};
 try{const s=JSON.parse(localStorage.getItem("bh-cart3")||"null");if(s){burgers=s.burgers||[];sides=s.sides||{};drinks=s.drinks||{}}}catch(e){}
 function save(){try{localStorage.setItem("bh-cart3",JSON.stringify({burgers,sides,drinks}))}catch(e){}}
 function clean(){
-  Object.keys(sides).forEach(k=>{if(!SIDES.some(x=>x.id===k))delete sides[k]});
+  Object.keys(sides).forEach(k=>{if(!SIDES.some(x=>x.id===k)||hidden("sides",k))delete sides[k]});
+  burgers=burgers.filter(b=>!hidden("kinds",b.kind));
   Object.keys(drinks).forEach(k=>{const d=drinkById(k);if(!d||!d.on)delete drinks[k]});
 }
 
 /* ---------- תפריט ---------- */
 function renderKinds(){
   const P=CFG.prices.kinds;
-  $("#kinds").innerHTML=Object.entries(KINDS).map(([k,K])=>`
+  $("#kinds").innerHTML=Object.entries(KINDS).filter(([k])=>!hidden("kinds",k)).map(([k,K])=>`
    <button class="opt" data-kind="${k}"><span><b>${K.n}${K.deal?'<span class="deal-tag">מבצע</span>':""}</b><small>${K.d}${k==="couple"&&P.meal*2>P.couple?` – חוסכים ${P.meal*2-P.couple} ₪`:""}</small></span>
    <span class="opt-r"><span class="pr">${ils(P[k])}</span><span class="plus" aria-hidden="true">+</span></span></button>`).join("");
   $("#sauceNote").textContent=`רטבים בתוך המנה – כמה שרוצים. רטבים בצד – עד ${CFG.sauceMax}.`;
 }
 function qtyCtl(attr,id,q,label){return `<span class="qty ${q?"has":""}"><button type="button" ${attr}="${id}" data-d="1" aria-label="הוספת ${label}">+</button><output>${q}</output><button type="button" ${attr}="${id}" data-d="-1" aria-label="הסרת ${label}">−</button></span>`}
-function sidesHTML(){const P=CFG.prices.sides;return SIDES.map(s=>`
+function sidesHTML(){const P=CFG.prices.sides;return SIDES.filter(x=>!hidden("sides",x.id)).map(s=>`
   <div class="item"><img class="th" src="img/${s.img}.jpg" alt=""><span class="n">${s.n}${s.s?`<small>${s.s}</small>`:""}</span><span class="p">${ils(P[s.id])}</span>${qtyCtl("data-side",s.id,sides[s.id]||0,s.n)}</div>`).join("")}
 function drinksHTML(){return CFG.drinks.map(d=>`
   <div class="dk ${d.on?"":"out"}"><img src="${esc(drinkImg(d))}" alt="" onerror="this.src='${bottle(d)}'"><b>${esc(d.name)}</b>
@@ -530,11 +571,11 @@ $("#kinds").addEventListener("click",e=>{const b=e.target.closest(".opt");if(!b)
   for(let i=0;i<K.burgers;i++){
     if(K.burgers>1)h+=`<div class="who">ארוחה ${i+1}</div>`;
     h+=`<fieldset><legend>ירקות במנה<small>לחיצה מורידה</small></legend><div class="chips">${VEG.map(v=>`<label class="chip"><input type="checkbox" name="v${i}" value="${v}" checked><span>${v}</span></label>`).join("")}</div></fieldset>
-      <fieldset><legend>רטבים בתוך המנה<small>כמה שרוצים</small></legend><div class="chips">${SAUCES.map(s=>`<label class="chip"><input type="checkbox" name="m${i}" value="${s}"><span>${s}</span></label>`).join("")}</div></fieldset>
+      <fieldset><legend>רטבים בתוך המנה<small>כמה שרוצים</small></legend><div class="chips">${sauceList().map(s=>`<label class="chip"><input type="checkbox" name="m${i}" value="${s}"><span>${s}</span></label>`).join("")}</div></fieldset>
       <fieldset><legend>רטבים בצד<small>עד ${CFG.sauceMax}, אפשר אותו רוטב כמה פעמים</small></legend><div id="sc${i}"></div></fieldset>`;
     if(K.drinks)h+=`<fieldset><legend>השתייה בארוחה</legend><div class="chips dchips">${avail.map(d=>`<label class="chip"><input type="radio" name="dr${i}" value="${d.id}"><span><img src="${esc(drinkImg(d))}" alt="" onerror="this.src='${bottle(d)}'">${esc(d.name)}</span></label>`).join("")||'<span class="hint">אין כרגע שתייה במלאי</span>'}</div></fieldset>`;
     h+=`<fieldset><legend>תוספות לבורגר<small>בתשלום</small></legend><div class="chips">${
-      EXTRAS.map(x=>`<label class="chip"><input type="checkbox" name="x${i}" value="${x.id}"><span><img src="img/${x.img}.jpg" alt="">${x.n} <em>+${CFG.prices.extras[x.id]}</em></span></label>`).join("")}</div></fieldset>`;
+      EXTRAS.filter(x=>!hidden("extras",x.id)).map(x=>`<label class="chip"><input type="checkbox" name="x${i}" value="${x.id}"><span><img src="img/${x.img}.jpg" alt="">${x.n} <em>+${CFG.prices.extras[x.id]}</em></span></label>`).join("")}</div></fieldset>`;
   }
   $("#bBody").innerHTML=h;$("#bErr").style.display="none";
   for(let i=0;i<K.burgers;i++)renderSauces(i);
@@ -542,7 +583,7 @@ $("#kinds").addEventListener("click",e=>{const b=e.target.closest(".opt");if(!b)
 });
 function renderSauces(i){
   const c=sauceCnt[i],tot=Object.values(c).reduce((a,b)=>a+b,0),full=tot>=CFG.sauceMax;
-  $("#sc"+i).innerHTML=`<div class="chips">${SAUCES.map(s=>{const n=c[s]||0;return `<span class="schip ${n?"on":""}">
+  $("#sc"+i).innerHTML=`<div class="chips">${sauceList().map(s=>{const n=c[s]||0;return `<span class="schip ${n?"on":""}">
      <button type="button" class="sadd" data-sauce="${i}" data-s="${s}" data-d="1" ${full?"disabled":""} aria-label="הוספת ${s}${n?`, נבחרו ${n}`:""}">${s}${n>1?` <i>×${n}</i>`:""}</button>${n?`<button type="button" class="sminus" data-sauce="${i}" data-s="${s}" data-d="-1" aria-label="הורדת ${s}">−</button>`:""}</span>`}).join("")}</div>
    <p class="hint">${tot?`נבחרו ${tot} מתוך ${CFG.sauceMax}`:`לחיצה מוסיפה רוטב, לחיצה נוספת – עוד אחד מאותו רוטב`}</p>`;
 }
@@ -609,7 +650,7 @@ function setErr(id,bad){$("#"+id).classList.toggle("invalid",bad);return bad}
 function validate(){
   const ph=$("#phone").value.replace(/\D/g,"");
   const bad=[setErr("f-name",!$("#name").value.trim()),setErr("f-phone",!/^05\d{8}$/.test(ph))];
-  bad.push(setErr("f-date",!$("#odate").value));
+  bad.push(setErr("f-date",!$("#odate").value||!$("#oslot").value));
   if(isDelivery())bad.push(setErr("f-town",!$("#town").value),setErr("f-addr",!$("#addr").value.trim()));
   else{setErr("f-town",false);setErr("f-addr",false)}
   const first=document.querySelector(".invalid input,.invalid select");if(first)first.focus();
@@ -639,12 +680,43 @@ $("#sendWa").onclick=()=>{
   if(id)m+=`\nלאישור ההזמנה וזמן הכנה:\n${location.origin+location.pathname}#manage`;
   window.open(`https://wa.me/${PHONE_WA}?text=${encodeURIComponent(m)}`,"_blank");
   if(id){
-    FS.setDoc(FS.doc(FDB,"orders",id),{...o,status:"new",createdAt:FS.serverTimestamp()})
+    const L=CFG.limit||{},lim=L.mode&&L.mode!=="off",op=upcomingOpenings().find(x=>x.key===o.date);
+    o.skey=o.slot==="ASAP"&&op?asapKey(op):o.slot;o.units=units();
+    const bt=FS.writeBatch(FDB);bt.set(FS.doc(FDB,"orders",id),{...o,status:"new",createdAt:FS.serverTimestamp()});
+    if(lim)bt.set(FS.doc(FDB,"slots",o.date),{[o.skey]:FS.increment(o.units)},{merge:true});
+    bt.commit()
       .then(()=>{try{localStorage.setItem("bh-order",JSON.stringify({id,at:Date.now(),cart:{burgers,sides,drinks}}))}catch(e){}
         burgers=[];sides={};drinks={};update();renderLists();closeSheets();track(id);openSheet("tracker")})
       .catch(e=>{console.warn(e);toast("ההזמנה נשלחה בוואטסאפ")});
   }
 };
+
+/* ---------- דפי פרטיות ונגישות (נבנים מפרטי העסק שהמנהל מילא) ---------- */
+function bizInfo(){const b=CFG.biz||{};return {name:b.name||"בורגר המשק",id:b.id||"",addr:b.addr||"",email:b.email||"",phone:b.phone||PHONE_SHOW,
+  a11yName:b.a11yName||"",a11yPhone:b.a11yPhone||b.phone||PHONE_SHOW,a11yEmail:b.a11yEmail||b.email||"",updated:b.updated||"17.11.2026"}}
+function contactLines(n,p,e,a){return [n&&`שם: ${esc(n)}`,p&&`טלפון: <a href="tel:${esc(p.replace(/\D/g,""))}">${esc(p)}</a>`,e&&`דוא"ל: <a href="mailto:${esc(e)}">${esc(e)}</a>`,a&&`כתובת: ${esc(a)}`].filter(Boolean).join("<br>")}
+const PAGES={
+ privacy:()=>{const b=bizInfo();return ["מדיניות פרטיות",`<p>עודכן לאחרונה: ${esc(b.updated)}</p>
+  <h3>מה נאסף</h3><p>כשמזמינים: שם, טלפון, כתובת (רק במשלוח), פרטי ההזמנה, היום והשעה שבחרתם, אמצעי התשלום שבחרתם (לא פרטי אשראי) והערות.</p>
+  <h3>למה</h3><p>רק כדי להכין את ההזמנה, לשלוח אותה ולדבר איתכם עליה. לא משתמשים בפרטים לפרסום ולא מוכרים אותם. בלי שם וטלפון (וכתובת במשלוח) אי אפשר לבצע הזמנה.</p>
+  <h3>איפה נשמר ומי רואה</h3><ul>
+   <li>ההזמנה נשמרת בשירות Google Firebase, בשרת בתל אביב.</li>
+   <li>רואים אותה: בעל העסק, ובהזמנות משלוח גם השליחים (שם, טלפון, כתובת ופרטי ההזמנה).</li>
+   <li>כשלוחצים "שליחת ההזמנה בוואטסאפ" נפתחת אצלכם הודעה מוכנה, ואתם שולחים אותה מהוואטסאפ שלכם (שירות של Meta).</li>
+   <li>מסך המעקב פתוח למי שיש את מספר ההזמנה המלא (מספר אקראי וארוך).</li></ul>
+  <h3>כמה זמן</h3><p>הזמנות נמחקות אוטומטית אחרי 90 יום.</p>
+  <h3>בטלפון שלכם</h3><p>העגלה, המועדפים וההזמנה האחרונה נשמרים רק בדפדפן שלכם. אין באתר עוגיות מעקב, פיקסלים או פרסומות. הגופנים נטענים מהאתר עצמו.</p>
+  <h3>אבטחה</h3><p>האתר מוצפן (HTTPS). רק בעל העסק והשליחים, עם סיסמה אישית, נכנסים להזמנות.</p>
+  <h3>עיון, תיקון ומחיקה</h3><p>אפשר לבקש לראות, לתקן או למחוק את הפרטים שלכם:<br>${contactLines(b.name,b.phone,b.email,b.addr)}</p>`]},
+ a11y:()=>{const b=bizInfo();return ["הצהרת נגישות",`<p>עודכן לאחרונה: ${esc(b.updated)}</p>
+  <p>${esc(b.name)} רואה חשיבות רבה במתן שירות שוויוני לכלל הלקוחות, לרבות אנשים עם מוגבלות. התאמות הנגישות באתר בוצעו בהתאם לתקנה 35 לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג-2013, ולתקן הישראלי ת"י 5568 ברמה AA.</p>
+  <h3>מה הונגש</h3><ul><li>האתר כולו בעברית ומימין לשמאל, עם מבנה כותרות ברור</li><li>הפעלה מלאה במקלדת, עם סימון בולט של המיקום, וקישור "דלג לתפריט"</li><li>ניגודיות צבעים לפי התקן, וטקסט שאפשר להגדיל עד 200%</li><li>טקסט חלופי לתמונות</li><li>טפסים עם תוויות והודעות שגיאה כתובות</li><li>כפתורים גדולים למגע, וכיבוד הגדרת "הפחתת תנועה"</li><li>אפשר תמיד להזמין גם בטלפון</li></ul>
+  <h3>נבדק</h3><p>בדפדפנים Chrome ו-Safari בטלפון ובמחשב.</p>
+  <h3>מגבלות ידועות</h3><p>תמונת השלט והתפריט היא תמונה. כל המידע שבה מופיע באתר גם כטקסט.</p>
+  <h3>נתקלתם בבעיית נגישות?</h3><p>נשמח לשמוע ולתקן:<br>${b.a11yName?`רכז/ת נגישות: ${esc(b.a11yName)}<br>`:""}${contactLines("",b.a11yPhone,b.a11yEmail,b.addr)}</p>`]}
+};
+document.addEventListener("click",e=>{const p=e.target.closest("[data-page]");if(!p)return;const [t,h]=PAGES[p.dataset.page]();$("#pgTitle").textContent=t;$("#pgBody").innerHTML=h;openSheet("pageSheet")});
+function renderBiz(){const b=bizInfo();$("#bizLine").textContent=[b.name,b.id&&`ע.מ./ח.פ. ${b.id}`,b.addr].filter(Boolean).join(" · ")}
 
 /* ---------- מועדפים (נשמרים בטלפון של הלקוח) ---------- */
 const favs=()=>{try{return JSON.parse(localStorage.getItem("bh-favs")||"[]")}catch(e){return[]}};
@@ -715,7 +787,7 @@ function renderTrack(){
 let tt;function toast(s){const t=$("#toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),2000)}
 
 /* ---------- טעינת הגדרות ---------- */
-function renderAll(){renderKinds();renderLists();renderStatus();clean();update();renderFavs();if($("#cart").classList.contains("on"))fillDates()}
+function renderAll(){renderBiz();renderKinds();renderLists();renderStatus();clean();update();renderFavs();if($("#cart").classList.contains("on"))fillDates()}
 function applySettings(s){CFG=merge(structuredClone(DEFAULTS),s);if(s.drinks)CFG.drinks=s.drinks;renderAll()}
 renderAll();
 // 1) מיד: הקובץ שבאתר (גיבוי)  2) Firebase – חי, כל שינוי של המנהל מגיע מיד

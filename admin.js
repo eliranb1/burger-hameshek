@@ -111,8 +111,11 @@ async function main(){
   T().innerHTML=`<div class="tabs" role="tablist">${[["orders","הזמנות"],["couriers","שליחים"],["days","ימי פתיחה"],["prices","מחירים"],["drinks","שתייה"],["more","הגדרות"]].map(([k,n])=>`<button role="tab" data-tab="${k}" aria-selected="${k===tab}">${n}</button>`).join("")}</div>`;
   T().onclick=e=>{const b=e.target.closest("[data-tab]");if(!b)return;collect();tab=b.dataset.tab;main2()};
   F().innerHTML=`<button class="b b-main" id="aSave">שמירה ופרסום באתר</button><div class="msg"></div>`;
-  $("#aSave").onclick=saveAll;listenOrders();main2();
+  $("#aSave").onclick=saveAll;listenOrders();main2();cleanup();
 }
+// מחיקת הזמנות בנות יותר מ-90 יום (כמו שכתוב במדיניות הפרטיות)
+async function cleanup(){try{const {db,F}=await fb();const q=F.query(F.collection(db,"orders"),F.where("createdAt","<",F.Timestamp.fromMillis(Date.now()-90*864e5)),F.limit(200));
+  const sn=await F.getDocs(q);if(sn.empty)return;const bt=F.writeBatch(db);sn.docs.forEach(d=>bt.delete(d.ref));await bt.commit()}catch(e){}}
 function main2(){T().querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));F().hidden=tab==="orders"||tab==="couriers";({orders,couriers,days,prices,drinks,more})[tab]()}
 
 /* ---------- הזמנות ---------- */
@@ -153,7 +156,13 @@ function orders(){
   const today=ymd(ilNow()),open=ORD.filter(o=>!["done","rejected"].includes(o.status)),closed=ORD.filter(o=>["done","rejected"].includes(o.status));
   const groups={};open.forEach(o=>{const k=orderDay(o);(groups[k]=groups[k]||[]).push(o)});
   const keys=Object.keys(groups).sort();
-  let h=keys.length?"":`<p class="muted" style="margin-top:16px;text-align:center">אין הזמנות פתוחות. הזמנה חדשה תופיע כאן עם צלצול.</p>`;
+  const cl=CFG.closed&&CFG.closed.date===today;
+  let h=`<div class="card" style="border-color:${cl?"#b8321f":"#e0cfb1"}">${cl?`<b style="color:#b8321f">🔴 האתר מציג: סגור להיום</b><p class="muted">${esc(CFG.closed.msg||"")}</p><button class="b b-line" id="reopen" style="margin-top:8px">פתיחה מחדש להיום</button>`
+     :`<b>נגמר הכול להיום?</b><label for="clMsg">הודעה ללקוחות (לא חובה)</label><input id="clMsg" placeholder="נגמרו הלחמניות – תודה לכולם!"><button class="b b-red" id="closeToday" style="margin-top:8px;width:100%">🔴 סגירה להיום</button><p class="muted">הלקוחות יראו שסגרנו ומתי נפתחים שוב, ויוכלו להזמין מראש.</p>`}</div>`;
+  const L=W&&W.limit||CFG.limit||{};
+  if(L.mode&&L.mode!=="off"){const load={};ORD.filter(o=>o.status!=="rejected"&&(o.date||"")===today).forEach(o=>{const k=o.skey||o.slot||"?";load[k]=(load[k]||0)+(o.units||1)});
+    const ks=Object.keys(load).sort();if(ks.length)h+=`<div class="card"><b>עומס היום</b> <span class="muted">(מקסימום ${L.per} ${L.mode==="burgers"?"מנות":"הזמנות"} לרבע שעה)</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${ks.map(k=>`<span class="tag" style="background:${load[k]>=L.per?"#b8321f":"#24170e"}">${k==="ASAP"?"מיידי":k} · ${load[k]}/${L.per}</span>`).join("")}</div></div>`}
+  if(!keys.length)h+=`<p class="muted" style="margin-top:16px;text-align:center">אין הזמנות פתוחות. הזמנה חדשה תופיע כאן עם צלצול.</p>`;
   keys.forEach(k=>{h+=`<h2 style="margin-top:16px">${k<today?"מימים קודמים – פתוחות":dayName(k)} <span class="muted">(${groups[k].length})</span></h2>`+groups[k].sort((a,b)=>(a.slot||"").localeCompare(b.slot||"")).map(card).join("")});
   h+=`<button class="b b-line" id="histBtn" style="width:100%;margin-top:18px">${showHist?"הסתרת ההיסטוריה":`היסטוריית הזמנות (${closed.length}${ORD.length>=ordLimit?"+":""})`}</button>`;
   if(showHist){h+=closed.map(card).join("")+(ORD.length>=ordLimit?`<button class="b b-line" id="moreHist" style="width:100%;margin-top:10px">לטעון עוד</button>`:"")}
@@ -162,6 +171,10 @@ function orders(){
 let rejArm=null;
 pan.addEventListener("click",async e=>{
   if(e.target.id==="histBtn"){showHist=!showHist;orders();return}
+  if(e.target.id==="closeToday"||e.target.id==="reopen"){const {db,F}=await fb();e.target.disabled=true;
+    const val=e.target.id==="closeToday"?{date:ymd(ilNow()),msg:($("#clMsg").value||"").trim()}:null;
+    try{await F.setDoc(F.doc(db,"site","settings"),{closed:val},{merge:true});CFG.closed=val;if(W)W.closed=val;orders()}catch(err){e.target.disabled=false;alertMsg("לא נשמר: "+(err.code||err.message))}
+    return}
   if(e.target.id==="moreHist"){ordLimit+=100;listenOrders();return}
   const b=e.target.closest("[data-a]");if(!b||!pan.contains(b))return;
   const {db,F}=await fb(),ref=F.doc(db,"orders",b.dataset.o),o=ORD.find(x=>x.id===b.dataset.o),a=b.dataset.a,m=+b.dataset.m;
@@ -173,7 +186,9 @@ pan.addEventListener("click",async e=>{
     a==="unpick"?{status:"ready",courierUid:null,courierName:null,courierPhone:null,pickedAt:null}:
     {status:a==="rej"?"rejected":a};
   b.disabled=true;
-  try{await F.updateDoc(ref,upd)}catch(err){b.disabled=false;alertMsg("לא נשמר: "+(err.code||err.message))}
+  try{await F.updateDoc(ref,upd);
+    if(a==="rej"&&o&&o.date&&o.skey&&o.units)await F.setDoc(F.doc(db,"slots",o.date),{[o.skey]:F.increment(-o.units)},{merge:true}).catch(()=>{});
+  }catch(err){b.disabled=false;alertMsg("לא נשמר: "+(err.code||err.message))}
 });
 function alertMsg(t){const d=document.createElement("p");d.className="msg err";d.textContent=t;B().prepend(d)}
 setInterval(()=>{if(!pan.hidden&&tab==="orders"&&ORD.some(o=>o.status==="accepted"))orders()},30000);
@@ -265,10 +280,12 @@ const PL={kinds:[["single","המבורגר"],["meal","ארוחה"],["couple","א
   extras:[["patty","קציצת המבורגר נוספת"],["mush","פטריות"],["egg","ביצת עין"],["onion","בצל מטוגן"]],
   sides:[["fries","צ'יפס"],["rings","טבעות בצל"],["mix","מיקס צ'יפס + טבעות"],["mash","כדורי פירה"],["pastel","פסטל (6 יח')"],["eggroll","אגרול (3 יח')"],["schnitz","שניצלונים"]]};
 function prices(){
-  const P=W.prices,sec=(t,g)=>`<div class="card"><b>${t}</b>${PL[g].map(([k,n])=>`<div class="pr"><span>${n}</span><input type="number" inputmode="numeric" min="0" data-g="${g}" data-k="${k}" value="${P[g][k]}" aria-label="מחיר ${n}"></div>`).join("")}</div>`;
-  B().innerHTML=sec("מנות","kinds")+`<div class="card"><b>שתייה</b><div class="pr"><span>כל משקה</span><input type="number" inputmode="numeric" min="0" id="pDrink" value="${P.drink}" aria-label="מחיר שתייה"></div></div>`+sec("תוספות לבורגר","extras")+sec("תוספות בצד","sides")+`<p class="muted" style="margin-top:10px">כל המחירים בשקלים</p>`;
+  W.hide=W.hide||{kinds:[],extras:[],sides:[],sauces:[]};
+  const H=(g,k)=>(W.hide[g]||[]).includes(k);
+  const P=W.prices,sec=(t,g)=>`<div class="card"><b>${t}</b>${PL[g].map(([k,n])=>`<div class="pr" style="grid-template-columns:1fr 96px"><span><label class="tog" style="margin:0;font-weight:700"><input type="checkbox" data-show="${g}" data-k="${k}" ${H(g,k)?"":"checked"}>${n}</label></span><input type="number" inputmode="numeric" min="0" data-g="${g}" data-k="${k}" value="${P[g][k]}" aria-label="מחיר ${n}"></div>`).join("")}</div>`;
+  B().innerHTML=`<p class="muted">✔ = מוצג באתר. מוצר שנגמר – מורידים את הסימון והוא נעלם מהאתר עד שמסמנים שוב.</p>`+sec("מנות","kinds")+`<div class="card"><b>שתייה</b><div class="pr"><span>כל משקה</span><input type="number" inputmode="numeric" min="0" id="pDrink" value="${P.drink}" aria-label="מחיר שתייה"></div></div>`+sec("תוספות לבורגר","extras")+sec("תוספות בצד","sides")+`<div class="card"><b>רטבים</b>${["קטשופ","מיונז","צ'ילי מתוק","ברביקיו","ספייסי"].map(x=>`<label class="tog" style="margin:8px 0"><input type="checkbox" data-show="sauces" data-k="${x}" ${H("sauces",x)?"":"checked"}>${x}</label>`).join("")}</div><p class="muted" style="margin-top:10px">כל המחירים בשקלים. לא לשכוח "שמירה ופרסום באתר".</p>`;
 }
-function collectPrices(){if(!$("#pDrink"))return;B().querySelectorAll("[data-g]").forEach(i=>{const v=parseInt(i.value,10);if(!isNaN(v)&&v>=0)W.prices[i.dataset.g][i.dataset.k]=v});const d=parseInt($("#pDrink").value,10);if(!isNaN(d))W.prices.drink=d}
+function collectPrices(){if(!$("#pDrink"))return;const h={kinds:[],extras:[],sides:[],sauces:[]};B().querySelectorAll("[data-show]").forEach(c=>{if(!c.checked)h[c.dataset.show].push(c.dataset.k)});W.hide=h;B().querySelectorAll("[data-g]").forEach(i=>{const v=parseInt(i.value,10);if(!isNaN(v)&&v>=0)W.prices[i.dataset.g][i.dataset.k]=v});const d=parseInt($("#pDrink").value,10);if(!isNaN(d))W.prices.drink=d}
 
 /* שתייה */
 function imgOf(d){return pendingImgs[d.id]||drinkImg(d)}
@@ -305,12 +322,19 @@ function more(){
    <p class="muted">כבוי (ברירת מחדל): כשהשליח לוחץ "אספתי" הלקוח רואה מיד "בדרך". דלוק: מחכה שתאשר.</p>
    <label class="tog" style="margin-top:10px"><input type="checkbox" id="oEarly" ${ops.earlyPickup?"checked":""}>שליח יכול ללחוץ "אספתי" גם לפני שסימנתי "מוכן"</label>
    <p class="muted">לימים לחוצים. כבוי (ברירת מחדל): "אספתי" רק אחרי "מוכן".</p></div>
+  <div class="card"><b>הגבלת עומס לכל רבע שעה</b>
+   <label for="lMode">לפי מה להגביל</label><select id="lMode"><option value="off">בלי הגבלה</option><option value="burgers">לפי מנות המבורגר (זוגית = 2)</option><option value="orders">לפי מספר הזמנות</option></select>
+   <label for="lPer">כמה לכל רבע שעה</label><input id="lPer" type="number" min="1" max="50" value="${(W.limit&&W.limit.per)||6}">
+   <p class="muted">שעה שהתמלאה מופיעה ללקוח כ"מלא". בלשונית ההזמנות רואים את העומס של כל שעה.</p></div>
+  <div class="card"><b>פרטי העסק</b><p class="muted">מופיעים בתחתית האתר, במדיניות הפרטיות ובהצהרת הנגישות.</p>
+   ${[["bName","שם העסק","name"],["bId","מספר עוסק / ח.פ.","id"],["bAddr","כתובת","addr"],["bPhone","טלפון","phone"],["bEmail","דוא\"ל","email"],["bA11yName","שם רכז/ת נגישות","a11yName"],["bA11yPhone","טלפון רכז/ת נגישות","a11yPhone"],["bA11yEmail","דוא\"ל רכז/ת נגישות","a11yEmail"]].map(([id,l,k])=>`<label for="${id}">${l}</label><input id="${id}" data-biz="${k}" value="${esc((W.biz||{})[k]||"")}">`).join("")}</div>
   <div class="card"><label for="mSauce" style="margin-top:0">כמה רטבים בצד מותר למנה</label><input id="mSauce" type="number" min="1" max="10" value="${W.sauceMax}"></div>
   <div class="card"><b>החלפת סיסמת מנהל</b>
    <label for="np1">סיסמה חדשה</label><input id="np1" type="password" autocomplete="new-password" minlength="8">
    <label for="np2">שוב את הסיסמה</label><input id="np2" type="password" autocomplete="new-password">
    <button class="b b-line" id="mPw" style="margin-top:10px">החלפה</button><div class="msg" id="pwMsg"></div></div>
   <div class="card"><button class="b b-line" id="mOut">יציאה מהניהול</button></div>`;
+  $("#lMode").value=(W.limit&&W.limit.mode)||"off";
   $("#mPw").onclick=async()=>{const p1=$("#np1").value,p2=$("#np2").value,m=$("#pwMsg");
     if(p1.length<8){m.textContent="סיסמה של 8 תווים לפחות";m.className="msg err";return}
     if(p1!==p2){m.textContent="הסיסמאות לא זהות";m.className="msg err";return}
@@ -318,11 +342,11 @@ function more(){
     catch(e){m.textContent=/recent-login/.test(e.code||"")?"צריך לצאת ולהיכנס שוב, ואז להחליף":"תקלה: "+(e.code||e.message);m.className="msg err"}};
   $("#mOut").onclick=async()=>{const {auth,A}=await fb();await A.signOut(auth);close()};
 }
-function collectMore(){const m=$("#mSauce");if(m){const v=parseInt(m.value,10);if(v>0)W.sauceMax=v;W.ops={approvePickup:$("#oApprove").checked,earlyPickup:$("#oEarly").checked}}}
+function collectMore(){const m=$("#mSauce");if(m){W.limit={mode:$("#lMode").value,per:Math.max(1,parseInt($("#lPer").value,10)||6)};const bz={};B().querySelectorAll("[data-biz]").forEach(i=>{if(i.value.trim())bz[i.dataset.biz]=i.value.trim()});bz.updated=new Date().toLocaleDateString("he-IL");W.biz=bz;const v=parseInt(m.value,10);if(v>0)W.sauceMax=v;W.ops={approvePickup:$("#oApprove").checked,earlyPickup:$("#oEarly").checked}}}
 function collect(){collectDays();collectPrices();collectDrinks();collectMore()}
 
 /* ---------- שמירה ---------- */
-function pack(w){return {ops:{approvePickup:!!(w.ops&&w.ops.approvePickup),earlyPickup:!!(w.ops&&w.ops.earlyPickup)},prices:w.prices,schedule:w.schedule,sauceMax:w.sauceMax,drinks:w.drinks.map(({id,name,img,on})=>({id,name,img:img||"",on:!!on})),updated:new Date().toISOString()}}
+function pack(w){return {hide:w.hide||{kinds:[],extras:[],sides:[],sauces:[]},limit:w.limit||{mode:"off",per:6},biz:w.biz||{},closed:(CFG.closed||null),ops:{approvePickup:!!(w.ops&&w.ops.approvePickup),earlyPickup:!!(w.ops&&w.ops.earlyPickup)},prices:w.prices,schedule:w.schedule,sauceMax:w.sauceMax,drinks:w.drinks.map(({id,name,img,on})=>({id,name,img:img||"",on:!!on})),updated:new Date().toISOString()}}
 async function saveAll(){
   collect();const btn=$("#aSave");btn.disabled=true;
   try{
