@@ -610,12 +610,23 @@ let trackUnsub=null,trackTick=null,trackData=null;
 const ST={new:["⏳","ההזמנה נשלחה","מחכים לאישור של בורגר המשק"],accepted:["🔥","ההזמנה אושרה ובהכנה",""],
   out:["🛵","ההזמנה בדרך אליך!","השליח יצא – עוד מעט אצלך"],ready:["✅","ההזמנה מוכנה לאיסוף!","מחכה לך אצלנו"],
   done:["🍔","בתאבון!","תודה שהזמנת מבורגר המשק"],rejected:["✖","ההזמנה בוטלה",`לפרטים: ${PHONE_SHOW}`]};
+let trackId=null,trackPoll=null;
+const FINAL=["done","rejected"];
+function gotOrder(id,snap){if(!snap||!snap.exists())return;trackData={id,...snap.data()};renderTrack();if(FINAL.includes(trackData.status))clearInterval(trackPoll)}
+// בדיקה ישירה מול השרת – לא סומכים רק על החיבור החי (בטלפון הוא נרדם כשעוברים לוואטסאפ)
+function pullOrder(){if(!trackId||!window.FS)return;FS.getDocFromServer(FS.doc(FDB,"orders",trackId)).then(sn=>gotOrder(trackId,sn)).catch(()=>{})}
 function track(id){
   if(!window.FS||!window.FDB)return;
+  trackId=id;
   if(trackUnsub)trackUnsub();
-  trackUnsub=FS.onSnapshot(FS.doc(FDB,"orders",id),snap=>{if(!snap.exists())return;trackData={id,...snap.data()};renderTrack()},()=>{});
+  trackUnsub=FS.onSnapshot(FS.doc(FDB,"orders",id),sn=>gotOrder(id,sn),()=>{});
   clearInterval(trackTick);trackTick=setInterval(renderTrack,1000);
+  clearInterval(trackPoll);trackPoll=setInterval(pullOrder,10000);
+  pullOrder();
 }
+// חוזרים לאתר (מוואטסאפ / מסך נעול) – מחדשים חיבור ובודקים מיד
+function wake(){if(trackId&&document.visibilityState==="visible"&&!(trackData&&FINAL.includes(trackData.status)))track(trackId)}
+document.addEventListener("visibilitychange",wake);window.addEventListener("focus",wake);window.addEventListener("online",wake);
 function renderTrack(){
   const d=trackData;if(!d)return;
   const [ic,title,sub]=ST[d.status]||ST.new;
