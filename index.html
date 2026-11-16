@@ -182,8 +182,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
   <div class="hero-img"><img src="img/hero.jpg" width="1776" height="492" alt="שלט עץ: בורגר המשק – הביס של החשק, הטעם של עוד"></div>
   <h1>בורגר המשק</h1>
   <div class="wrap">
-    <div class="break" id="breakNote" hidden>חוזרים בחמישי הקרוב<small>אחרי הפסקה קצרה – שווה להזמין מראש</small></div>
-    <div class="facts"><span class="k">כשר · בשר חלק · ירק מהדרין</span><span>ימי חמישי 18:30–00:00</span></div>
+    <div class="facts"><span class="k">כשר · בשר חלק · ירק מהדרין</span><span>ימי חמישי 18:30–23:00</span></div>
     <div class="status" id="status" role="status"><span class="dot"></span><span id="statusText">פתוחים רק בימי חמישי</span></div>
     <div class="hero-cta">
       <a class="btn btn-yolk" href="#menu">להרכיב הזמנה</a>
@@ -202,9 +201,9 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
       <div class="star-top">
         <h3>100% אנטריקוט <span class="g">150 גרם</span></h3>
       </div>
-      <div class="layers" aria-label="מה בפנים"><span>עגבנייה</span><span>מלפפון חמוץ</span><span>בצל סגול</span><span>חסה לאליק</span><span>3 רטבים לבחירה</span></div>
+      <div class="layers" aria-label="מה בפנים"><span>עגבנייה</span><span>מלפפון חמוץ</span><span>בצל סגול</span><span>חסה לאליק</span><span>רטבים לבחירה</span></div>
       <img class="sauce-strip" src="img/sauces.jpg" width="1030" height="148" alt="הרטבים: קטשופ, מיונז, צ'ילי מתוק, ברביקיו, ספייסי">
-      <p class="sauce-note">כל רוטב מעבר ל-3 – בתוספת 2 ₪</p>
+      <p class="sauce-note">בתוך המנה – כמה רטבים שרוצים. רטבים בצד – עד 3.</p>
       <div class="options">
         <button class="opt" data-kind="single"><span><b>המבורגר</b><small>בלחמנייה, עם הירקות והרטבים</small></span><span class="opt-r"><span class="pr">45 ₪</span><span class="plus" aria-hidden="true">+</span></span></button>
         <button class="opt" data-kind="meal"><span><b>ארוחה</b><small>המבורגר + צ'יפס + שתייה</small></span><span class="opt-r"><span class="pr">60 ₪</span><span class="plus" aria-hidden="true">+</span></span></button>
@@ -226,7 +225,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 </main>
 
 <footer class="wrap">
-  בורגר המשק · כשר, בשר חלק, ירק מהדרין<br>ימי חמישי 18:30–00:00<br>
+  בורגר המשק · כשר, בשר חלק, ירק מהדרין<br>ימי חמישי 18:30–23:00<br>
   הזמנות ומשלוחים: <a href="tel:0523181539">052-3181539</a><br>
   המחירים בשקלים וכוללים מע"מ
 </footer>
@@ -279,8 +278,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 
 <script>
 const PHONE_WA = "972523181539";
-const BREAK_NOTICE = true;   // להעלים את "חוזרים בחמישי הקרוב": לשנות ל-false
-const FREE_SAUCES = 3, SAUCE_EXTRA = 2;
+const SIDE_SAUCE_MAX = 3;
 const SAUCES = ["קטשופ","מיונז","צ'ילי מתוק","ברביקיו","ספייסי"];
 const EXTRAS = [{id:"patty",n:"קציצת המבורגר נוספת",p:15,img:"patty"},{id:"mush",n:"פטריות",p:5,img:"mush"},{id:"egg",n:"ביצת עין",p:5,img:"egg"},{id:"onion",n:"בצל מטוגן",p:3,img:"onion"}];
 const KINDS = {single:{n:"המבורגר",p:45,burgers:1},meal:{n:"ארוחה",p:60,burgers:1},couple:{n:"ארוחה זוגית",p:110,burgers:2}};
@@ -301,8 +299,7 @@ function save(){try{localStorage.setItem("bh-cart",JSON.stringify({burgers,sides
 (function(){
   const now=new Date(new Date().toLocaleString("en-US",{timeZone:"Asia/Jerusalem"}));
   const d=now.getDay(); const el=$("#status"), t=$("#statusText");
-  if(BREAK_NOTICE)$("#breakNote").hidden=false;
-  if(d===4){el.classList.add("open");t.textContent="היום חמישי – מקבלים הזמנות, 18:30–00:00";return}
+  if(d===4){el.classList.add("open");t.textContent="היום חמישי – מקבלים הזמנות, 18:30–23:00";return}
   const add=(4-d+7)%7, nx=new Date(now); nx.setDate(now.getDate()+add);
   t.textContent=`פתוחים רק בימי חמישי · הבא: ${nx.getDate()}.${nx.getMonth()+1} – אפשר להזמין מראש`;
 })();
@@ -333,8 +330,10 @@ document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
   let h="";
   for(let i=0;i<K.burgers;i++){
     if(K.burgers>1)h+=`<div class="who">המבורגר ${i+1}</div>`;
-    h+=`<fieldset data-i="${i}" class="sauces"><legend>רטבים<small>3 כלולים, כל נוסף +2 ₪</small></legend><div class="chips">${
+    h+=`<fieldset><legend>רטבים בתוך המנה<small>כמה שרוצים</small></legend><div class="chips">${
       SAUCES.map(s=>`<label class="chip"><input type="checkbox" name="s${i}" value="${s}"><span>${s}</span></label>`).join("")}</div></fieldset>
+      <fieldset class="side-sauces"><legend>רטבים בצד<small>עד 3</small></legend><div class="chips">${
+      SAUCES.map(s=>`<label class="chip"><input type="checkbox" name="d${i}" value="${s}"><span>${s}</span></label>`).join("")}</div></fieldset>
       <fieldset><legend>תוספות לבורגר<small>בתשלום</small></legend><div class="chips">${
       EXTRAS.map(x=>`<label class="chip"><input type="checkbox" name="x${i}" value="${x.id}"><span><img src="img/${x.img}.jpg" alt="">${x.n} <em>+${x.p}</em></span></label>`).join("")}</div></fieldset>`;
   }
@@ -344,11 +343,14 @@ function readBuilder(){
   const K=KINDS[building];const sub=[];
   for(let i=0;i<K.burgers;i++){
     sub.push({sauces:[...document.querySelectorAll(`[name="s${i}"]:checked`)].map(x=>x.value),
+              side:[...document.querySelectorAll(`[name="d${i}"]:checked`)].map(x=>x.value),
               extras:[...document.querySelectorAll(`[name="x${i}"]:checked`)].map(x=>x.value)})}
   return {kind:building,sub};
 }
-const priceOf=b=>KINDS[b.kind].p+b.sub.reduce((a,s)=>a+Math.max(0,s.sauces.length-FREE_SAUCES)*SAUCE_EXTRA+s.extras.reduce((c,id)=>c+EXTRAS.find(x=>x.id===id).p,0),0);
+const priceOf=b=>KINDS[b.kind].p+b.sub.reduce((a,s)=>a+s.extras.reduce((c,id)=>c+EXTRAS.find(x=>x.id===id).p,0),0);
 function refreshBuilder(){
+  document.querySelectorAll("fieldset.side-sauces").forEach(fs=>{const n=fs.querySelectorAll("input:checked").length;
+    fs.querySelectorAll("input").forEach(x=>x.disabled=!x.checked&&n>=SIDE_SAUCE_MAX)});
   $("#bAdd").textContent=`הוספה להזמנה · ${ils(priceOf(readBuilder()))}`;
 }
 $("#bBody").addEventListener("change",refreshBuilder);
@@ -359,9 +361,9 @@ function total(){return burgers.reduce((a,b)=>a+priceOf(b),0)+Object.entries(sid
 function count(){return burgers.length+Object.values(sides).reduce((a,b)=>a+b,0)}
 function describe(b){return b.sub.map((s,i)=>{
   const pre=b.sub.length>1?`המבורגר ${i+1}: `:"";
-  const xs=Math.max(0,s.sauces.length-FREE_SAUCES);const sa=(s.sauces.length?s.sauces.join(", "):"בלי רטבים")+(xs?` (+${xs*SAUCE_EXTRA} ₪)`:"");
+  const sa=(s.sauces.length?s.sauces.join(", "):"בלי רטבים")+((s.side||[]).length?` | בצד: ${s.side.join(", ")}`:"");
   const ex=s.extras.length?" | תוספות: "+s.extras.map(id=>EXTRAS.find(x=>x.id===id).n).join(", "):"";
-  return pre+"רטבים: "+sa+ex}).join("\n")}
+  return pre+"רטבים במנה: "+sa+ex}).join("\n")}
 function update(bump){
   const c=count(),t=total();$("#cnt").textContent=c;$("#tot").textContent=ils(t);$("#sumTot").textContent=ils(t);
   $("#bar").classList.toggle("show",c>0);
