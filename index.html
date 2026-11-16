@@ -146,6 +146,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .chip input:checked+span{border-color:var(--yolk);background:var(--yolk);color:var(--char)}
 .chip input:focus-visible+span{outline:3px solid var(--yolk);outline-offset:2px}
 .chip input:disabled+span{opacity:.35}
+.chip input[name^="v"]:not(:checked)+span{text-decoration:line-through;opacity:.6}
 .chip img{width:30px;height:24px;border-radius:5px;object-fit:cover;margin-inline-start:-6px}
 .chip em{font-style:normal;font-weight:600;opacity:.8;font-size:15px}
 .field{margin-top:14px}
@@ -235,7 +236,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
       <div class="star-top"><h3>100% אנטריקוט <span class="g">150 גרם</span></h3></div>
       <div class="layers" aria-label="מה בפנים"><span>עגבנייה</span><span>מלפפון חמוץ</span><span>בצל סגול</span><span>חסה לאליק</span></div>
       <img class="sauce-strip" src="img/sauces.jpg" width="1030" height="148" alt="הרטבים: קטשופ, מיונז, צ'ילי מתוק, ברביקיו, ספייסי">
-      <p class="sauce-note" id="sauceNote">עד 3 רטבים למנה – אפשר גם 3 מאותו רוטב</p>
+      <p class="sauce-note" id="sauceNote">רטבים בתוך המנה – כמה שרוצים. רטבים בצד – עד 3.</p>
       <div class="options" id="kinds"></div>
     </div>
   </section>
@@ -337,6 +338,7 @@ const REPO = "eliranb1/burger-hameshek";
 const PHONE_WA = "972523181539", PHONE_SHOW = "052-3181539";
 const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const SAUCES = ["קטשופ","מיונז","צ'ילי מתוק","ברביקיו","ספייסי"];
+const VEG = ["עגבנייה","מלפפון חמוץ","בצל סגול","חסה לאליק"];
 
 const DEFAULTS = {
   prices:{ kinds:{single:45,meal:60,couple:110}, extras:{patty:15,mush:5,egg:5,onion:3},
@@ -429,7 +431,7 @@ function renderKinds(){
   $("#kinds").innerHTML=Object.entries(KINDS).map(([k,K])=>`
    <button class="opt" data-kind="${k}"><span><b>${K.n}${K.deal?'<span class="deal-tag">מבצע</span>':""}</b><small>${K.d}${k==="couple"&&P.meal*2>P.couple?` – חוסכים ${P.meal*2-P.couple} ₪`:""}</small></span>
    <span class="opt-r"><span class="pr">${ils(P[k])}</span><span class="plus" aria-hidden="true">+</span></span></button>`).join("");
-  $("#sauceNote").textContent=`עד ${CFG.sauceMax} רטבים למנה – אפשר גם ${CFG.sauceMax} מאותו רוטב`;
+  $("#sauceNote").textContent=`רטבים בתוך המנה – כמה שרוצים. רטבים בצד – עד ${CFG.sauceMax}.`;
 }
 function qtyCtl(attr,id,q,label){return `<span class="qty ${q?"has":""}"><button type="button" ${attr}="${id}" data-d="1" aria-label="הוספת ${label}">+</button><output>${q}</output><button type="button" ${attr}="${id}" data-d="-1" aria-label="הסרת ${label}">−</button></span>`}
 function sidesHTML(){const P=CFG.prices.sides;return SIDES.map(s=>`
@@ -463,7 +465,9 @@ $("#kinds").addEventListener("click",e=>{const b=e.target.closest(".opt");if(!b)
   const avail=drinksOn();let h="";
   for(let i=0;i<K.burgers;i++){
     if(K.burgers>1)h+=`<div class="who">ארוחה ${i+1}</div>`;
-    h+=`<fieldset><legend>רטבים<small>עד ${CFG.sauceMax} למנה, אפשר אותו רוטב כמה פעמים</small></legend><div id="sc${i}"></div></fieldset>`;
+    h+=`<fieldset><legend>ירקות במנה<small>לחיצה מורידה</small></legend><div class="chips">${VEG.map(v=>`<label class="chip"><input type="checkbox" name="v${i}" value="${v}" checked><span>${v}</span></label>`).join("")}</div></fieldset>
+      <fieldset><legend>רטבים בתוך המנה<small>כמה שרוצים</small></legend><div class="chips">${SAUCES.map(s=>`<label class="chip"><input type="checkbox" name="m${i}" value="${s}"><span>${s}</span></label>`).join("")}</div></fieldset>
+      <fieldset><legend>רטבים בצד<small>עד ${CFG.sauceMax}, אפשר אותו רוטב כמה פעמים</small></legend><div id="sc${i}"></div></fieldset>`;
     if(K.drinks)h+=`<fieldset><legend>השתייה בארוחה</legend><div class="chips dchips">${avail.map(d=>`<label class="chip"><input type="radio" name="dr${i}" value="${d.id}"><span><img src="${esc(drinkImg(d))}" alt="" onerror="this.src='${bottle(d)}'">${esc(d.name)}</span></label>`).join("")||'<span class="hint">אין כרגע שתייה במלאי</span>'}</div></fieldset>`;
     h+=`<fieldset><legend>תוספות לבורגר<small>בתשלום</small></legend><div class="chips">${
       EXTRAS.map(x=>`<label class="chip"><input type="checkbox" name="x${i}" value="${x.id}"><span><img src="img/${x.img}.jpg" alt="">${x.n} <em>+${CFG.prices.extras[x.id]}</em></span></label>`).join("")}</div></fieldset>`;
@@ -484,7 +488,7 @@ $("#bBody").addEventListener("click",e=>{const b=e.target.closest("[data-sauce]"
 function readBuilder(){
   const K=KINDS[building],sub=[];
   for(let i=0;i<K.burgers;i++){const dr=document.querySelector(`[name="dr${i}"]:checked`);
-    sub.push({sauces:{...sauceCnt[i]},drink:dr?dr.value:null,extras:[...document.querySelectorAll(`[name="x${i}"]:checked`)].map(x=>x.value)})}
+    sub.push({veg:VEG.filter(v=>!document.querySelector(`[name="v${i}"][value="${v}"]`).checked),dish:[...document.querySelectorAll(`[name="m${i}"]:checked`)].map(x=>x.value),sauces:{...sauceCnt[i]},drink:dr?dr.value:null,extras:[...document.querySelectorAll(`[name="x${i}"]:checked`)].map(x=>x.value)})}
   return {kind:building,sub};
 }
 const priceOf=b=>CFG.prices.kinds[b.kind]+b.sub.reduce((a,s)=>a+s.extras.reduce((c,id)=>c+(CFG.prices.extras[id]||0),0),0);
@@ -506,12 +510,14 @@ const sideTotal=()=>Object.entries(sides).reduce((a,[id,q])=>a+(CFG.prices.sides
 const drinkTotal=()=>Object.values(drinks).reduce((a,q)=>a+CFG.prices.drink*q,0);
 const total=()=>burgers.reduce((a,b)=>a+priceOf(b),0)+sideTotal()+drinkTotal();
 const count=()=>burgers.length+Object.values(sides).reduce((a,b)=>a+b,0)+Object.values(drinks).reduce((a,b)=>a+b,0);
-function sauceText(o){const e=Object.entries(o||{});return e.length?e.map(([s,n])=>n>1?`${n}× ${s}`:s).join(", "):"בלי רטבים"}
+function sauceText(o){const e=Object.entries(o||{});return e.length?e.map(([s,n])=>n>1?`${n}× ${s}`:s).join(", "):"בלי"}
 function describe(b){return b.sub.map((s,i)=>{
   const pre=b.sub.length>1?`ארוחה ${i+1}: `:"";
   const dr=s.drink?` | שתייה: ${(drinkById(s.drink)||{name:s.drink}).name}`:"";
   const ex=s.extras.length?" | תוספות: "+s.extras.map(id=>EXTRAS.find(x=>x.id===id).n).join(", "):"";
-  return pre+"רטבים: "+sauceText(s.sauces)+dr+ex}).join("\n")}
+  const vg=(s.veg&&s.veg.length)?"בלי "+s.veg.join(", בלי "):"כל הירקות";
+  const ds=(s.dish&&s.dish.length)?s.dish.join(", "):"בלי";
+  return pre+vg+" | רטבים במנה: "+ds+" | רטבים בצד: "+sauceText(s.sauces)+dr+ex}).join("\n")}
 function update(bump){
   const c=count(),t=total();$("#cnt").textContent=c;$("#tot").textContent=ils(t);$("#sumTot").textContent=ils(t);
   $("#bar").classList.toggle("show",c>0);

@@ -219,7 +219,7 @@ function shrink(file){return new Promise((res,rej)=>{const img=new Image();img.o
 
 /* הגדרות */
 function more(){
-  B().innerHTML=`<div class="card"><label for="mSauce" style="margin-top:0">כמה רטבים מותר למנה</label><input id="mSauce" type="number" min="1" max="10" value="${W.sauceMax}"></div>
+  B().innerHTML=`<div class="card"><label for="mSauce" style="margin-top:0">כמה רטבים בצד מותר למנה</label><input id="mSauce" type="number" min="1" max="10" value="${W.sauceMax}"></div>
   <div class="card"><b>סיסמה ומפתח</b><p class="muted">החלפת סיסמת המנהל, או הכנסת מפתח גיטהאב חדש כשהישן פג.</p><button class="b b-line" id="mPw" style="margin-top:8px">החלפת סיסמה / מפתח</button></div>
   <div class="card"><b>בדיקת חיבור לגיטהאב</b><p class="muted">בודק צעד-צעד אם אפשר לשמור, ומראה מה גיטהאב עונה.</p><button class="b b-line" id="mDiag" style="margin-top:8px">הרצת בדיקה</button><pre id="diag" style="white-space:pre-wrap;font-size:14px;margin-top:8px;direction:rtl"></pre></div>
   <div class="card"><button class="b b-line" id="mOut">יציאה מהניהול</button></div>`;
