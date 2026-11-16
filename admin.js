@@ -13,6 +13,7 @@ let token=null, W=null, pendingImgs={}, tab="days";
 
 /* ---------- סגנון ---------- */
 const css=`
+.adm[hidden],.adm-scrim[hidden]{display:none!important}
 .adm-scrim{position:fixed;inset:0;background:rgba(10,6,3,.75);z-index:80}
 .adm{position:fixed;top:0;bottom:0;left:0;width:min(460px,100%);z-index:90;background:#f7efe1;color:#24170e;display:flex;flex-direction:column;
   box-shadow:10px 0 40px rgba(0,0,0,.5);font-family:var(--body);font-size:17px}

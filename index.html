@@ -193,6 +193,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .pay .l-cash{color:#7fd38c}.pay .l-bit{color:#4fd1d9}.pay .l-pb{color:#5aa9ff}
 .pay .chip input:checked+span .logo{color:var(--char)}
 .paynote{font-size:14.5px;color:var(--straw);margin-top:8px;font-weight:600}
+.week-note[hidden]{display:none}
 .week-note{display:block;max-width:560px;margin:10px auto 0;padding:10px 16px;border-radius:12px;background:var(--ember);color:#fff;font-weight:800}
 .admin-link{background:none;color:var(--straw);text-decoration:underline;font-size:13px;margin-top:10px}
 </style>
@@ -378,6 +379,7 @@ function openingForWeek(ws){
 const toMin=t=>{const[h,m]=t.split(":").map(Number);return h*60+(m||0)};
 function renderStatus(){
   const now=ilNow(), ws=weekStart(now), S=CFG.schedule;
+  $("#weekNote").hidden=true;$("#status").classList.remove("open");
   const def=`ימי ${DAYS[S.day]} ${S.from}–${S.to}`;
   $("#footHours").textContent=def;
   let op=openingForWeek(ws), next=null;
