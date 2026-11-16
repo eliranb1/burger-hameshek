@@ -68,23 +68,25 @@ const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 async function keyFrom(pw,salt){const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
   return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
-async function lock(tok,pw){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+async function lock(tok,pw){if(!(window.crypto&&crypto.subtle))throw new Error("הדפדפן לא תומך בהצפנה – נסו בכרום");const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
   const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},await keyFrom(pw,salt),new TextEncoder().encode(tok));
   return {v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)}}
 async function unlock(L,pw){const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(L.iv)},await keyFrom(pw,unb64(L.salt)),unb64(L.ct));return new TextDecoder().decode(pt)}
 
 /* ---------- גיטהאב ---------- */
+function tf(url,opt={},ms=20000){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
+  return fetch(url,{...opt,signal:c.signal}).catch(e=>{throw new Error(e.name==="AbortError"?"אין תשובה מגיטהאב (בדקו אינטרנט ונסו שוב)":"תקלת רשת: "+e.message)}).finally(()=>clearTimeout(t))}
 const H=()=>({Authorization:"Bearer "+token,Accept:"application/vnd.github+json"});
-async function getRaw(path){const r=await fetch(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:{Accept:"application/vnd.github.raw+json"},cache:"no-store"});return r.ok?r.json():null}
-async function shaOf(path){const r=await fetch(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:H(),cache:"no-store"});if(r.status===404)return null;if(!r.ok)throw new Error("קריאה מגיטהאב נכשלה ("+r.status+")");return (await r.json()).sha}
+async function getRaw(path){const r=await tf(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:{Accept:"application/vnd.github.raw+json"},cache:"no-store"});return r.ok?r.json():null}
+async function shaOf(path){const r=await tf(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:H(),cache:"no-store"});if(r.status===404)return null;if(!r.ok)throw new Error("קריאה מגיטהאב נכשלה (קוד "+r.status+")");return (await r.json()).sha}
 async function put(path,b64content,message){
   const sha=await shaOf(path);const body={message,content:b64content,branch:"main"};if(sha)body.sha=sha;
-  const r=await fetch(`${API}/contents/${path}`,{method:"PUT",headers:H(),body:JSON.stringify(body)});
+  const r=await tf(`${API}/contents/${path}`,{method:"PUT",headers:H(),body:JSON.stringify(body)});
   if(r.status===401||r.status===403)throw new Error("המפתח של גיטהאב לא תקף או פג תוקף – צריך מפתח חדש (לשונית 'הגדרות')");
-  if(!r.ok)throw new Error("השמירה נכשלה ("+r.status+")");
+  if(!r.ok){let d="";try{d=(await r.json()).message||""}catch(_){}throw new Error("השמירה נכשלה (קוד "+r.status+") "+d)}
 }
 const jsonB64=o=>{const bytes=new TextEncoder().encode(JSON.stringify(o,null,2));let s="";bytes.forEach(b=>s+=String.fromCharCode(b));return btoa(s)};
-async function testToken(tok){const r=await fetch(API,{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"}});if(!r.ok)return false;const j=await r.json();return !j.permissions||j.permissions.push}
+async function testToken(tok){const r=await tf(API,{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"}});if(!r.ok)return false;const j=await r.json();return !j.permissions||j.permissions.push}
 
 /* ---------- כניסה ---------- */
 async function open(){
@@ -116,10 +118,11 @@ function setup(changing){
     const tok=$("#atok").value.trim(),p1=$("#ap1").value,p2=$("#ap2").value;
     if(p1.length<8)return msg("סיסמה של 8 תווים לפחות","err");
     if(p1!==p2)return msg("הסיסמאות לא זהות","err");
-    msg("בודק את המפתח…");
-    if(!await testToken(tok).catch(()=>false))return msg("המפתח לא עובד – בדקו שבחרתם את המאגר ו-Contents: Read and write","err");
-    token=tok;msg("נועל ושומר…");
-    try{await put("admin-lock.json",jsonB64(await lock(tok,p1)),"admin: set password");try{sessionStorage.setItem("bh-tok",token)}catch(_){}
+    msg("בודק את המפתח…");const btn=pan.querySelector("[form=sf]");btn.disabled=true;setTimeout(()=>btn.disabled=false,25000);
+    const okTok=await testToken(tok).catch(e=>{msg(e.message,"err");return null});if(okTok===null)return;if(!okTok)return msg("המפתח לא עובד – בדקו שבחרתם את המאגר ו-Contents: Read and write","err");
+    token=tok;
+    try{msg("שלב 1 מתוך 2: מצפין את המפתח…");const L=await lock(tok,p1);
+      msg("שלב 2 מתוך 2: שומר בגיטהאב…");await put("admin-lock.json",jsonB64(L),"admin: set password");try{sessionStorage.setItem("bh-tok",token)}catch(_){}
       msg("נשמר","ok");setTimeout(main,600)}catch(err){msg(err.message,"err")}};
 }
 
