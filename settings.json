@@ -33,7 +33,7 @@
     {
       "id": "cola",
       "name": "קולה",
-      "img": "",
+      "img": "img/drinks/cola-mwjq24g7.jpg",
       "on": true
     },
     {
@@ -72,5 +72,6 @@
       "img": "",
       "on": true
     }
-  ]
+  ],
+  "updated": "2026-11-16T20:34:33.858Z"
 }
