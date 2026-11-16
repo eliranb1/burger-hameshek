@@ -1,17 +1,15 @@
 /* =========================================================
-   בורגר המשק – חלון מנהל
-   איך זה עובד:
-   - ההגדרות נשמרות בקובץ settings.json במאגר בגיטהאב.
-   - כדי לכתוב לגיטהאב צריך "מפתח" (טוקן). המפתח שמור באתר רק כשהוא
-     מוצפן בסיסמת המנהל (קובץ admin-lock.json). בלי הסיסמה אי אפשר לפתוח אותו.
+   בורגר המשק – חלון מנהל (Firebase)
+   - ההגדרות: Firestore, מסמך site/settings. תמונות משקאות: אוסף images.
+   - כניסה: Firebase Auth עם סיסמה בלבד (המייל קבוע כאן).
+   - כללי האבטחה ב-Firestore: כולם קוראים, רק המנהל כותב.
    ========================================================= */
 (function(){
-const REPO="eliranb1/burger-hameshek", API="https://api.github.com/repos/"+REPO;
+const MANAGER_EMAIL="manager@burger-hameshek.app";
 const DAYS=["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const $=s=>document.querySelector(s);
-let token=null, W=null, pendingImgs={}, tab="days";
+let W=null, pendingImgs={}, tab="days", FB=null;
 
-/* ---------- סגנון ---------- */
 const css=`
 .adm[hidden],.adm-scrim[hidden]{display:none!important}
 .adm-scrim{position:fixed;inset:0;background:rgba(10,6,3,.75);z-index:80}
@@ -64,86 +62,40 @@ const B=()=>pan.querySelector("#admB"),F=()=>pan.querySelector("#admF"),T=()=>pa
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function msg(t,kind){const m=pan.querySelector(".msg");if(m){m.textContent=t;m.className="msg "+(kind||"")}}
 
-/* ---------- הצפנה (סיסמה ← מפתח) ---------- */
-const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
-const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
-async function keyFrom(pw,salt){const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
-  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
-async function lock(tok,pw){if(!(window.crypto&&crypto.subtle))throw new Error("הדפדפן לא תומך בהצפנה – נסו בכרום");const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
-  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},await keyFrom(pw,salt),new TextEncoder().encode(tok));
-  return {v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)}}
-async function unlock(L,pw){const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(L.iv)},await keyFrom(pw,unb64(L.salt)),unb64(L.ct));return new TextDecoder().decode(pt)}
 
-/* ---------- גיטהאב ---------- */
-function tf(url,opt={},ms=20000){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
-  return fetch(url,{...opt,signal:c.signal}).catch(e=>{throw new Error(e.name==="AbortError"?"אין תשובה מגיטהאב (בדקו אינטרנט ונסו שוב)":"תקלת רשת: "+e.message)}).finally(()=>clearTimeout(t))}
-const H=()=>({Authorization:"Bearer "+token,Accept:"application/vnd.github+json"});
-async function getRaw(path){const r=await tf(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:{Accept:"application/vnd.github.raw+json"},cache:"no-store"});return r.ok?r.json():null}
-async function shaOf(path){const r=await tf(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:H(),cache:"no-store"});if(r.status===404)return null;if(!r.ok)throw new Error("קריאה מגיטהאב נכשלה (קוד "+r.status+")");return (await r.json()).sha}
-async function put(path,b64content,message){
-  const sha=await shaOf(path);const body={message,content:b64content,branch:"main"};if(sha)body.sha=sha;
-  const r=await tf(`${API}/contents/${path}`,{method:"PUT",headers:H(),body:JSON.stringify(body)});
-  if(r.status===401||r.status===403){let d="";try{d=(await r.json()).message||""}catch(_){}
-    throw new Error(r.status===403?"גיטהאב סירב: למפתח אין הרשאת כתיבה למאגר ("+d+"). צריך במפתח: Repository access ← burger-hameshek, ו-Contents ← Read and write":"גיטהאב לא מכיר את המפתח ("+d+") – צריך מפתח חדש (לשונית 'הגדרות')")}
-  if(!r.ok){let d="";try{d=(await r.json()).message||""}catch(_){}throw new Error("השמירה נכשלה (קוד "+r.status+") "+d)}
-  let j=null;try{j=await r.json()}catch(_){}
-  if(!j||!j.commit||!j.commit.sha||!j.content||!j.content.sha)throw new Error(BLOCKED);
-  return j;
+/* ---------- Firebase ---------- */
+async function fb(){
+  if(FB)return FB;
+  const V="https://www.gstatic.com/firebasejs/11.0.2/";
+  const [app,auth,fs]=await Promise.all([import(V+"firebase-app.js"),import(V+"firebase-auth.js"),import(V+"firebase-firestore.js")]);
+  const a=app.getApps().length?app.getApp():app.initializeApp(FIREBASE_CONFIG);
+  FB={auth:auth.getAuth(a),A:auth,db:fs.getFirestore(a),F:fs};return FB;
 }
-const BLOCKED="השמירה לא הגיעה לגיטהאב. משהו בדרך (כנראה מסנן אינטרנט בטלפון) חסם אותה. כלום לא נשמר.";
-/* בדיקה עצמאית: קוראים מגיטהאב את הקובץ ומוודאים שזו הגרסה ששמרנו */
-async function verify(path,blobSha){
-  for(let i=0;i<4;i++){
-    const r=await tf(`${API}/contents/${path}?ref=main&t=${Date.now()}`,{headers:H(),cache:"no-store"});
-    if(r.ok){let j=null;try{j=await r.json()}catch(_){}if(j&&j.sha===blobSha)return true}
-    await new Promise(z=>setTimeout(z,1500));
-  }
-  throw new Error("גיטהאב לא מראה את הקובץ ששמרנו – "+BLOCKED);
-}
-const jsonB64=o=>{const bytes=new TextEncoder().encode(JSON.stringify(o,null,2));let s="";bytes.forEach(b=>s+=String.fromCharCode(b));return btoa(s)};
-async function testToken(tok){const r=await tf(API,{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"}});if(!r.ok)return false;const j=await r.json();return !j.permissions||j.permissions.push}
 
 /* ---------- כניסה ---------- */
 async function open(){
   pan.hidden=false;scrim.hidden=false;T().innerHTML="";F().innerHTML="";
-  if(token){main();return}
-  try{const t=sessionStorage.getItem("bh-tok");if(t){token=t;main();return}}catch(e){}
   B().innerHTML=`<p class="muted">טוען…</p>`;
-  const L=await getRaw("admin-lock.json").catch(()=>null);
-  L?login(L):setup();
+  try{const {auth,A}=await fb();
+    await new Promise(r=>{const u=A.onAuthStateChanged(auth,()=>{u();r()})});
+    auth.currentUser?main():login();
+  }catch(e){B().innerHTML=`<p class="msg err">לא הצלחתי להתחבר לשירות: ${esc(e.message)}</p>`}
 }
-function login(L){
+function login(){
   B().innerHTML=`<form id="lf"><label for="apw">סיסמת מנהל</label><input id="apw" type="password" autocomplete="current-password" required><div class="msg"></div></form>`;
   F().innerHTML=`<button class="b b-main" form="lf">כניסה</button>`;
   setTimeout(()=>$("#apw").focus(),50);
   $("#lf").onsubmit=async e=>{e.preventDefault();msg("בודק…");
-    try{token=await unlock(L,$("#apw").value);try{sessionStorage.setItem("bh-tok",token)}catch(_){}main()}
-    catch(_){msg("סיסמה שגויה","err");$("#apw").select()}};
-}
-function setup(changing){
-  B().innerHTML=`<h2>${changing?"החלפת מפתח או סיסמה":"הגדרה ראשונה"}</h2>
-  <p class="muted" style="margin-top:6px">עושים את זה פעם אחת. צריך מפתח מגיטהאב שמרשה לאתר לשמור שינויים:</p>
-  <ol class="steps"><li>נכנסים ל-github.com/settings/personal-access-tokens/new</li><li>שם: burger-admin · תוקף: הארוך ביותר</li><li>Repository access → Only select → burger-hameshek</li><li>Permissions → Contents → Read and write</li><li>Generate → מעתיקים את המפתח לכאן</li></ol>
-  <form id="sf"><label for="atok">מפתח גיטהאב</label><input id="atok" dir="ltr" autocomplete="off" required>
-  <label for="ap1">סיסמת מנהל חדשה</label><input id="ap1" type="password" autocomplete="new-password" minlength="8" required>
-  <label for="ap2">שוב את הסיסמה</label><input id="ap2" type="password" autocomplete="new-password" required><div class="msg"></div></form>`;
-  F().innerHTML=`<button class="b b-main" form="sf">שמירה</button>`;
-  if(changing&&token)$("#atok").value=token;
-  $("#sf").onsubmit=async e=>{e.preventDefault();
-    const tok=$("#atok").value.trim(),p1=$("#ap1").value,p2=$("#ap2").value;
-    if(p1.length<8)return msg("סיסמה של 8 תווים לפחות","err");
-    if(p1!==p2)return msg("הסיסמאות לא זהות","err");
-    msg("בודק את המפתח…");const btn=pan.querySelector("[form=sf]");btn.disabled=true;setTimeout(()=>btn.disabled=false,25000);
-    const okTok=await testToken(tok).catch(e=>{msg(e.message,"err");return null});if(okTok===null)return;if(!okTok)return msg("המפתח לא עובד – בדקו שבחרתם את המאגר ו-Contents: Read and write","err");
-    token=tok;
-    try{msg("שלב 1 מתוך 2: מצפין את המפתח…");const L=await lock(tok,p1);
-      msg("שלב 2 מתוך 2: שומר בגיטהאב…");const jl=await put("admin-lock.json",jsonB64(L),"admin: set password");await verify("admin-lock.json",jl.content.sha);try{sessionStorage.setItem("bh-tok",token)}catch(_){}
-      msg("נשמר","ok");setTimeout(main,600)}catch(err){msg(err.message,"err")}};
+    try{const {auth,A}=await fb();await A.signInWithEmailAndPassword(auth,MANAGER_EMAIL,$("#apw").value);main()}
+    catch(err){msg(/invalid|wrong|credential/i.test(err.code||"")?"סיסמה שגויה":/too-many/.test(err.code||"")?"יותר מדי ניסיונות – לחכות כמה דקות":"תקלה: "+(err.code||err.message),"err");$("#apw").select()}};
 }
 
 /* ---------- מסך ניהול ---------- */
-function main(){
+async function main(){
   W=structuredClone(CFG);pendingImgs={};
+  // פעם ראשונה: אם אין עדיין הגדרות ב-Firebase – מעלים את מה שיש באתר
+  try{const {db,F}=await fb();const s=await F.getDoc(F.doc(db,"site","settings"));
+    if(!s.exists()){await F.setDoc(F.doc(db,"site","settings"),pack(W));}}catch(e){}
   T().innerHTML=`<div class="tabs" role="tablist">${[["days","ימי פתיחה"],["prices","מחירים"],["drinks","שתייה"],["more","הגדרות"]].map(([k,n])=>`<button role="tab" data-tab="${k}" aria-selected="${k===tab}">${n}</button>`).join("")}</div>`;
   T().onclick=e=>{const b=e.target.closest("[data-tab]");if(!b)return;collect();tab=b.dataset.tab;main2()};
   F().innerHTML=`<button class="b b-main" id="aSave">שמירה ופרסום באתר</button><div class="msg"></div>`;
@@ -192,11 +144,11 @@ function prices(){
 function collectPrices(){if(!$("#pDrink"))return;B().querySelectorAll("[data-g]").forEach(i=>{const v=parseInt(i.value,10);if(!isNaN(v)&&v>=0)W.prices[i.dataset.g][i.dataset.k]=v});const d=parseInt($("#pDrink").value,10);if(!isNaN(d))W.prices.drink=d}
 
 /* שתייה */
-function imgOf(d){return pendingImgs[d.id]||(d.img?d.img:bottle(d))}
+function imgOf(d){return pendingImgs[d.id]||drinkImg(d)}
 function drinks(){
   B().innerHTML=`<p class="muted">לוחצים על התמונה כדי להחליף. "במלאי" כבוי = מופיע באתר כ"אזל".</p>`+W.drinks.map((d,i)=>`
    <div class="card drk" data-i="${i}"><img src="${esc(imgOf(d))}" alt="תמונת ${esc(d.name)} – לחצו להחלפה" role="button" tabindex="0" class="dImg">
-   <div><label style="margin-top:0">שם</label><input class="dName" value="${esc(d.name)}"><div class="muted">${pendingImgs[d.id]?"⏳ תמונה חדשה – עוד לא נשמרה":d.img?"✓ תמונה שמורה באתר":"בלי תמונה (בקבוק מצויר)"}</div></div>
+   <div><label style="margin-top:0">שם</label><input class="dName" value="${esc(d.name)}"><div class="muted">${pendingImgs[d.id]?"⏳ תמונה חדשה – עוד לא נשמרה":d.img?"✓ תמונה שמורה":"בלי תמונה (בקבוק מצויר)"}</div></div>
    <div class="acts"><label class="tog"><input type="checkbox" class="dOn" ${d.on?"checked":""}>במלאי</label>
    <button class="b b-line dPic" type="button">תמונה</button>${d.img||pendingImgs[d.id]?`<button class="b b-line dNoPic" type="button">בלי תמונה</button>`:""}<button class="b b-red dDel" type="button">מחיקה</button></div></div>`).join("")
    +`<button class="b b-line" id="dAdd" style="width:100%;margin-top:12px">+ הוספת משקה</button><input type="file" accept="image/*" id="dFile" hidden>`;
@@ -218,54 +170,45 @@ function shrink(file){return new Promise((res,rej)=>{const img=new Image();img.o
   img.onerror=rej;img.src=URL.createObjectURL(file)})}
 
 /* הגדרות */
+/* הגדרות */
 function more(){
   B().innerHTML=`<div class="card"><label for="mSauce" style="margin-top:0">כמה רטבים בצד מותר למנה</label><input id="mSauce" type="number" min="1" max="10" value="${W.sauceMax}"></div>
-  <div class="card"><b>סיסמה ומפתח</b><p class="muted">החלפת סיסמת המנהל, או הכנסת מפתח גיטהאב חדש כשהישן פג.</p><button class="b b-line" id="mPw" style="margin-top:8px">החלפת סיסמה / מפתח</button></div>
-  <div class="card"><b>בדיקת חיבור לגיטהאב</b><p class="muted">בודק צעד-צעד אם אפשר לשמור, ומראה מה גיטהאב עונה.</p><button class="b b-line" id="mDiag" style="margin-top:8px">הרצת בדיקה</button><pre id="diag" style="white-space:pre-wrap;font-size:14px;margin-top:8px;direction:rtl"></pre></div>
+  <div class="card"><b>החלפת סיסמת מנהל</b>
+   <label for="np1">סיסמה חדשה</label><input id="np1" type="password" autocomplete="new-password" minlength="8">
+   <label for="np2">שוב את הסיסמה</label><input id="np2" type="password" autocomplete="new-password">
+   <button class="b b-line" id="mPw" style="margin-top:10px">החלפה</button><div class="msg" id="pwMsg"></div></div>
   <div class="card"><button class="b b-line" id="mOut">יציאה מהניהול</button></div>`;
-  $("#mDiag").onclick=diag;
-  $("#mPw").onclick=()=>{T().innerHTML="";F().innerHTML="";setup(true)};
-  $("#mOut").onclick=()=>{token=null;try{sessionStorage.removeItem("bh-tok")}catch(_){}close()};
-}
-async function diag(){
-  const out=$("#diag"),line=t=>{out.textContent+=t+"\n"};out.textContent="";
-  const step=async(name,fn)=>{const t0=Date.now();line("⏳ "+name+"…");
-    try{const r=await fn();let body="";try{body=(await r.clone().json()).message||""}catch(_){}
-      line(`${r.ok?"✓":"✗"} ${name}: קוד ${r.status}${body?" – "+body:""} (${((Date.now()-t0)/1000).toFixed(1)} שנ')`);return r}
-    catch(e){line(`✗ ${name}: ${e.message} (${((Date.now()-t0)/1000).toFixed(1)} שנ')`);return null}};
-  line("מפתח: "+(token?token.slice(0,15)+"…":"אין"));
-  await step("1. קריאה בלי מפתח",()=>tf(API));
-  await step("2. קריאה עם המפתח",()=>tf(API,{headers:H()}));
-  const p="diag-test.txt";
-  const g=await step("3. בדיקת קובץ בדיקה",()=>tf(`${API}/contents/${p}?ref=main&t=${Date.now()}`,{headers:H(),cache:"no-store"}));
-  let sha=null;try{if(g&&g.ok)sha=(await g.json()).sha}catch(_){}
-  const body={message:"admin: connection test",content:btoa(new Date().toISOString()),branch:"main"};if(sha)body.sha=sha;
-  const w=await step("4. כתיבה לגיטהאב",()=>tf(`${API}/contents/${p}`,{method:"PUT",headers:H(),body:JSON.stringify(body)}));
-  if(w&&w.ok){let j=null;try{j=await w.json()}catch(_){}line(j&&j.commit?"✓ גיטהאב אישר שמירה "+j.commit.sha.slice(0,7)+" – הכתיבה עובדת!":"✗ התשובה לא מגיטהאב – משהו בדרך חוסם")}
+  $("#mPw").onclick=async()=>{const p1=$("#np1").value,p2=$("#np2").value,m=$("#pwMsg");
+    if(p1.length<8){m.textContent="סיסמה של 8 תווים לפחות";m.className="msg err";return}
+    if(p1!==p2){m.textContent="הסיסמאות לא זהות";m.className="msg err";return}
+    try{const {auth,A}=await fb();await A.updatePassword(auth.currentUser,p1);m.textContent="הסיסמה הוחלפה ✓";m.className="msg ok";$("#np1").value=$("#np2").value=""}
+    catch(e){m.textContent=/recent-login/.test(e.code||"")?"צריך לצאת ולהיכנס שוב, ואז להחליף":"תקלה: "+(e.code||e.message);m.className="msg err"}};
+  $("#mOut").onclick=async()=>{const {auth,A}=await fb();await A.signOut(auth);close()};
 }
 function collectMore(){const m=$("#mSauce");if(m){const v=parseInt(m.value,10);if(v>0)W.sauceMax=v}}
 function collect(){collectDays();collectPrices();collectDrinks();collectMore()}
 
 /* ---------- שמירה ---------- */
+function pack(w){return {prices:w.prices,schedule:w.schedule,sauceMax:w.sauceMax,drinks:w.drinks.map(({id,name,img,on})=>({id,name,img:img||"",on:!!on})),updated:new Date().toISOString()}}
 async function saveAll(){
   collect();const btn=$("#aSave");btn.disabled=true;
   try{
+    const {db,F}=await fb();
     const ids=Object.keys(pendingImgs);let n=0;
     for(const id of ids){msg(`מעלה תמונה ${++n} מתוך ${ids.length}…`);
-      const path=`img/drinks/${id}-${Date.now().toString(36)}.jpg`;
-      const ji=await put(path,pendingImgs[id].split(",")[1],"admin: drink image");
-      msg(`בודק שתמונה ${n} באמת נשמרה…`);await verify(path,ji.content.sha);
-      const d=W.drinks.find(x=>x.id===id);if(d)d.img=path;}
-    msg("שומר הגדרות…");
-    const js=await put("settings.json",jsonB64({prices:W.prices,schedule:W.schedule,sauceMax:W.sauceMax,drinks:W.drinks,updated:new Date().toISOString()}),"admin: update settings");
-    msg("בודק מול גיטהאב שהשמירה באמת שם…");await verify("settings.json",js.content.sha);
-    var proof=js.commit.sha.slice(0,7);
-    // תמונות חדשות זמינות באתר אחרי דקה – בינתיים מציגים את מה שהועלה
-    Object.entries(pendingImgs).forEach(([id,u])=>{const d=W.drinks.find(x=>x.id===id);if(d)d._preview=u});
+      const key=id+"-"+Date.now().toString(36);
+      await F.setDoc(F.doc(db,"images",key),{data:pendingImgs[id]});
+      IMGS[key]=pendingImgs[id];
+      const d=W.drinks.find(x=>x.id===id);if(d)d.img="fs:"+key;}
+    msg("שומר…");
+    const data=pack(W);
+    await F.setDoc(F.doc(db,"site","settings"),data);
+    msg("בודק מול השרת שהשמירה באמת שם…");
+    const chk=await F.getDocFromServer(F.doc(db,"site","settings"));
+    if(!chk.exists()||chk.data().updated!==data.updated)throw new Error("השרת לא מראה את השמירה – נסו שוב");
     pendingImgs={};
-    CFG=structuredClone(W);CFG.drinks.forEach(d=>{if(d._preview){d.img=d._preview}});W.drinks.forEach(d=>delete d._preview);
-    renderAll();msg(`נשמר ונבדק ✓ גיטהאב אישר (מספר שמירה ${proof}). הלקוחות יראו תוך דקה-שתיים.`,"ok");
-  }catch(err){msg(err.message,"err")}
+    msg("נשמר ונבדק ✓ השינוי כבר מופיע אצל הלקוחות","ok");
+  }catch(err){msg(/permission/i.test(err.code||err.message)?"אין הרשאה לשמור – צריך להיכנס שוב":"השמירה נכשלה: "+(err.code||err.message),"err")}
   btn.disabled=false;
 }
 window.BHAdmin={open};
