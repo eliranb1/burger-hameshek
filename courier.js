@@ -121,6 +121,7 @@ pan.addEventListener("click",async e=>{
       await F.runTransaction(db,async t=>{const cur=await t.get(ref);const o=cur.data();
         if(!o||o.courierUid)throw {code:"taken"};
         t.update(ref,{status:approve?"pickup_pending":"out",courierUid:me.uid,courierName:me.name,courierPhone:me.phone,pickedAt:F.serverTimestamp()})});
+      if(approve&&typeof notifyManager==="function")notifyManager(`🛵 ${me.name} לחץ "אספתי"`,`הזמנה #${p.dataset.pick.slice(0,5).toUpperCase()} – מחכה לאישור שלך`);
     }else{await F.updateDoc(F.doc(db,"orders",d.dataset.done),{status:"done",deliveredAt:F.serverTimestamp()})}
   }catch(err){btn.disabled=false;if(m){m.className="msg err";m.textContent=err.code==="taken"?"שליח אחר כבר אסף את ההזמנה הזו":/permission/.test(err.code||"")?"אי אפשר – ההזמנה עוד לא מוכנה או שכבר נאספה":"תקלה: "+(err.code||err.message)}}
 });

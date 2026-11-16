@@ -404,6 +404,7 @@ const DEFAULTS = {
   hide:{kinds:[],extras:[],sides:[],sauces:[]},
   limit:{mode:"off",per:6},
   biz:{},
+  notify:{on:true,topic:"burger-hameshek-66nzbj0gurel"},
   drinks:[
     {id:"cola",name:"קולה",img:"",on:true},{id:"zero",name:"קולה זירו",img:"",on:true},
     {id:"fanta",name:"פאנטה",img:"",on:true},{id:"sprite",name:"ספרייט",img:"",on:true},
@@ -685,7 +686,9 @@ $("#sendWa").onclick=()=>{
     const bt=FS.writeBatch(FDB);bt.set(FS.doc(FDB,"orders",id),{...o,status:"new",createdAt:FS.serverTimestamp()});
     if(lim)bt.set(FS.doc(FDB,"slots",o.date),{[o.skey]:FS.increment(o.units)},{merge:true});
     bt.commit()
-      .then(()=>{try{localStorage.setItem("bh-order",JSON.stringify({id,at:Date.now(),cart:{burgers,sides,drinks}}))}catch(e){}
+      .then(()=>{const dd2=o.date===ymd(ilNow())?"היום":fmtDay(new Date(o.date+"T12:00"),false);
+        notifyManager(`🍔 הזמנה חדשה #${id.slice(0,5).toUpperCase()}`,`${o.how} · ${dd2}, ${o.slot==="ASAP"?"כמה שיותר מוקדם":o.slot} · ${o.lines.length} פריטים · ${o.total} ₪ · ${o.pay}`);
+        try{localStorage.setItem("bh-order",JSON.stringify({id,at:Date.now(),cart:{burgers,sides,drinks}}))}catch(e){}
         burgers=[];sides={};drinks={};update();renderLists();closeSheets();track(id);openSheet("tracker")})
       .catch(e=>{console.warn(e);toast("ההזמנה נשלחה בוואטסאפ")});
   }
@@ -720,6 +723,9 @@ function renderBiz(){const b=bizInfo();$("#bizLine").textContent=[b.name,b.id&&`
 
 /* ---------- מועדפים (נשמרים בטלפון של הלקוח) ---------- */
 const favs=()=>{try{return JSON.parse(localStorage.getItem("bh-favs")||"[]")}catch(e){return[]}};
+/* התראה לטלפון של המנהל דרך אפליקציית ntfy – בלי פרטים אישיים, רק סיכום */
+function notifyManager(title,message){const N=CFG.notify||{};if(!N.on||!N.topic)return;
+  fetch("https://ntfy.sh/",{method:"POST",body:JSON.stringify({topic:N.topic,title,message,tags:["hamburger"],priority:4,click:location.origin+location.pathname+"#manage"})}).catch(()=>{})}
 function cartTitle(c){const p=[];c.burgers.forEach(b=>p.push(KINDS[b.kind].n));Object.entries(c.drinks||{}).forEach(([id,q])=>{const d=drinkById(id);if(d)p.push(`${q}× ${d.name}`)});Object.entries(c.sides||{}).forEach(([id,q])=>{const s=SIDES.find(x=>x.id===id);if(s)p.push(`${q}× ${s.n}`)});return p.join(" · ")}
 function saveFav(c){if(!c||!(c.burgers.length||Object.keys(c.sides||{}).length||Object.keys(c.drinks||{}).length)){toast("אין מה לשמור");return}
   const f=favs();const t=cartTitle(c);if(f.some(x=>x.t===t)){toast("כבר במועדפים ⭐");return}

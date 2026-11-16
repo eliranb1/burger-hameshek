@@ -322,6 +322,12 @@ function more(){
    <p class="muted">כבוי (ברירת מחדל): כשהשליח לוחץ "אספתי" הלקוח רואה מיד "בדרך". דלוק: מחכה שתאשר.</p>
    <label class="tog" style="margin-top:10px"><input type="checkbox" id="oEarly" ${ops.earlyPickup?"checked":""}>שליח יכול ללחוץ "אספתי" גם לפני שסימנתי "מוכן"</label>
    <p class="muted">לימים לחוצים. כבוי (ברירת מחדל): "אספתי" רק אחרי "מוכן".</p></div>
+  <div class="card"><b>🔔 התראה לטלפון על הזמנה חדשה</b>
+   <label class="tog" style="margin-top:10px"><input type="checkbox" id="nOn" ${(W.notify||{}).on!==false?"checked":""}>לשלוח התראה על כל הזמנה חדשה</label>
+   <p class="muted">חד-פעמי: מתקינים בטלפון את האפליקציה <b>ntfy</b> (חינם, בגוגל פליי / אפ סטור) ← לוחצים + ← מדביקים את השם:</p>
+   <pre style="direction:ltr;text-align:left;user-select:all;background:#fff;padding:8px;border-radius:8px">${esc((W.notify||{}).topic||"burger-hameshek-66nzbj0gurel")}</pre>
+   <p class="muted">ההתראה כוללת רק מספר הזמנה, סכום ושעה – בלי שם, טלפון או כתובת. לחיצה עליה פותחת את מסך ההזמנות.</p>
+   <button class="b b-line" id="nTest" style="margin-top:6px">שליחת התראת בדיקה</button><div class="msg" id="nMsg"></div></div>
   <div class="card"><b>הגבלת עומס לכל רבע שעה</b>
    <label for="lMode">לפי מה להגביל</label><select id="lMode"><option value="off">בלי הגבלה</option><option value="burgers">לפי מנות המבורגר (זוגית = 2)</option><option value="orders">לפי מספר הזמנות</option></select>
    <label for="lPer">כמה לכל רבע שעה</label><input id="lPer" type="number" min="1" max="50" value="${(W.limit&&W.limit.per)||6}">
@@ -335,6 +341,9 @@ function more(){
    <button class="b b-line" id="mPw" style="margin-top:10px">החלפה</button><div class="msg" id="pwMsg"></div></div>
   <div class="card"><button class="b b-line" id="mOut">יציאה מהניהול</button></div>`;
   $("#lMode").value=(W.limit&&W.limit.mode)||"off";
+  $("#nTest").onclick=async()=>{const m=$("#nMsg"),t=(W.notify||{}).topic||"burger-hameshek-66nzbj0gurel";m.textContent="שולח…";m.className="msg";
+    try{const r=await fetch("https://ntfy.sh/",{method:"POST",body:JSON.stringify({topic:t,title:"🍔 בדיקה – בורגר המשק",message:"אם רואים את זה בטלפון – ההתראות עובדות ✓",tags:["hamburger"],priority:4,click:location.origin+location.pathname+"#manage"})});
+      if(!r.ok)throw new Error("קוד "+r.status);m.textContent="נשלחה ✓ – אמורה להופיע בטלפון תוך שניות";m.className="msg ok"}catch(e){m.textContent="לא נשלחה: "+e.message;m.className="msg err"}};
   $("#mPw").onclick=async()=>{const p1=$("#np1").value,p2=$("#np2").value,m=$("#pwMsg");
     if(p1.length<8){m.textContent="סיסמה של 8 תווים לפחות";m.className="msg err";return}
     if(p1!==p2){m.textContent="הסיסמאות לא זהות";m.className="msg err";return}
@@ -342,11 +351,11 @@ function more(){
     catch(e){m.textContent=/recent-login/.test(e.code||"")?"צריך לצאת ולהיכנס שוב, ואז להחליף":"תקלה: "+(e.code||e.message);m.className="msg err"}};
   $("#mOut").onclick=async()=>{const {auth,A}=await fb();await A.signOut(auth);close()};
 }
-function collectMore(){const m=$("#mSauce");if(m){W.limit={mode:$("#lMode").value,per:Math.max(1,parseInt($("#lPer").value,10)||6)};const bz={};B().querySelectorAll("[data-biz]").forEach(i=>{if(i.value.trim())bz[i.dataset.biz]=i.value.trim()});bz.updated=new Date().toLocaleDateString("he-IL");W.biz=bz;const v=parseInt(m.value,10);if(v>0)W.sauceMax=v;W.ops={approvePickup:$("#oApprove").checked,earlyPickup:$("#oEarly").checked}}}
+function collectMore(){const m=$("#mSauce");if(m){W.notify={on:$("#nOn").checked,topic:(W.notify||{}).topic||"burger-hameshek-66nzbj0gurel"};W.limit={mode:$("#lMode").value,per:Math.max(1,parseInt($("#lPer").value,10)||6)};const bz={};B().querySelectorAll("[data-biz]").forEach(i=>{if(i.value.trim())bz[i.dataset.biz]=i.value.trim()});bz.updated=new Date().toLocaleDateString("he-IL");W.biz=bz;const v=parseInt(m.value,10);if(v>0)W.sauceMax=v;W.ops={approvePickup:$("#oApprove").checked,earlyPickup:$("#oEarly").checked}}}
 function collect(){collectDays();collectPrices();collectDrinks();collectMore()}
 
 /* ---------- שמירה ---------- */
-function pack(w){return {hide:w.hide||{kinds:[],extras:[],sides:[],sauces:[]},limit:w.limit||{mode:"off",per:6},biz:w.biz||{},closed:(CFG.closed||null),ops:{approvePickup:!!(w.ops&&w.ops.approvePickup),earlyPickup:!!(w.ops&&w.ops.earlyPickup)},prices:w.prices,schedule:w.schedule,sauceMax:w.sauceMax,drinks:w.drinks.map(({id,name,img,on})=>({id,name,img:img||"",on:!!on})),updated:new Date().toISOString()}}
+function pack(w){return {notify:w.notify||{on:true,topic:"burger-hameshek-66nzbj0gurel"},hide:w.hide||{kinds:[],extras:[],sides:[],sauces:[]},limit:w.limit||{mode:"off",per:6},biz:w.biz||{},closed:(CFG.closed||null),ops:{approvePickup:!!(w.ops&&w.ops.approvePickup),earlyPickup:!!(w.ops&&w.ops.earlyPickup)},prices:w.prices,schedule:w.schedule,sauceMax:w.sauceMax,drinks:w.drinks.map(({id,name,img,on})=>({id,name,img:img||"",on:!!on})),updated:new Date().toISOString()}}
 async function saveAll(){
   collect();const btn=$("#aSave");btn.disabled=true;
   try{
