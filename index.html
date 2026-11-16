@@ -221,6 +221,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .pay .logo{font-weight:800;font-size:19px;letter-spacing:.2px}
 .pay .l-cash{color:#7fd38c}.pay .l-bit{color:#4fd1d9}.pay .l-pb{color:#5aa9ff}
 .pay .chip input:checked+span .logo{color:var(--char)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .paynote{font-size:14.5px;color:var(--straw);margin-top:8px;font-weight:600}
 .week-note[hidden]{display:none}
 .week-note{display:block;max-width:560px;margin:10px auto 0;padding:10px 16px;border-radius:12px;background:var(--ember);color:#fff;font-weight:800}
@@ -247,6 +248,11 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 </header>
 
 <main id="menu" class="wrap">
+  <section id="favs" aria-labelledby="h-favs" hidden>
+    <h2 id="h-favs">המועדפים שלי</h2>
+    <div class="list" id="favList"></div>
+  </section>
+
   <section aria-labelledby="h-burger">
     <h2 id="h-burger">ההמבורגר</h2>
     <div class="star">
@@ -280,7 +286,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
   בורגר המשק · כשר, בשר חלק, ירק מהדרין<br>
   <span id="footHours">ימי חמישי 18:30–23:00</span><br>
   הזמנות ומשלוחים: <a href="tel:0523181539">052-3181539</a><br>
-  <button class="admin-link" id="adminBtn">כניסת מנהל</button>
+  <button class="admin-link" id="adminBtn">כניסת מנהל</button> · <button class="admin-link" id="courierBtn">כניסת שליח</button>
 </footer>
 
 <div class="bar" id="bar"><button id="openCart" aria-label="צפייה בהזמנה"><span><span class="cnt" id="cnt">0</span>להזמנה שלי</span><span class="tot" id="tot">0 ₪</span></button></div>
@@ -308,7 +314,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
   <div class="sh-head"><h2 id="cTitle">ההזמנה שלי</h2><button class="x" data-close aria-label="סגירה">×</button></div>
   <div class="sh-body">
     <div id="lines"></div>
-    <button class="btn btn-ghost" id="addMore" style="width:100%;margin-top:12px">+ שתייה ותוספות</button>
+    <div class="row2" style="margin-top:12px"><button class="btn btn-ghost" id="addMore">+ שתייה ותוספות</button><button class="btn btn-ghost" id="favCart">⭐ למועדפים</button></div>
     <div class="sum"><span>סה"כ</span><span id="sumTot">0 ₪</span></div>
     <form id="form" novalidate>
       <fieldset><legend>איך מקבלים?</legend>
@@ -325,7 +331,11 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
           <div class="err">בחרו יישוב למשלוח</div></div>
         <div class="field" id="f-addr"><label for="addr">כתובת</label><input id="addr" autocomplete="street-address" placeholder="רחוב, מספר בית"><div class="err">צריך כתובת למשלוח</div></div>
       </div>
-      <div class="field"><label for="time">שעה רצויה <small style="color:var(--straw);font-weight:600">(לא חובה)</small></label><input id="time" placeholder="למשל: 19:30"></div>
+      <div class="row2">
+        <div class="field" id="f-date"><label for="odate">ליום</label><select id="odate"></select><div class="err">אין יום פעילות פתוח להזמנה</div></div>
+        <div class="field"><label for="oslot">שעה</label><select id="oslot"></select></div>
+      </div>
+      <p class="paynote" id="dateNote"></p>
       <fieldset><legend>אמצעי תשלום</legend>
         <div class="pay">
           <label class="chip"><input type="radio" name="pay" value="מזומן" checked><span><span class="logo l-cash">₪</span>מזומן</span></label>
@@ -370,6 +380,7 @@ const DEFAULTS = {
            sides:{fries:10,rings:15,mix:15,mash:18,pastel:18,eggroll:18,schnitz:25}, drink:10 },
   schedule:{ day:4, from:"18:30", to:"23:00", weeks:{} },
   sauceMax:3,
+  ops:{approvePickup:false,earlyPickup:false},
   drinks:[
     {id:"cola",name:"קולה",img:"",on:true},{id:"zero",name:"קולה זירו",img:"",on:true},
     {id:"fanta",name:"פאנטה",img:"",on:true},{id:"sprite",name:"ספרייט",img:"",on:true},
@@ -440,6 +451,33 @@ function renderStatus(){
   if(!thisWeek){const w=$("#weekNote");w.hidden=false;w.textContent="השבוע אנחנו סגורים";}
   else if(thisWeek.changed&&ymd(thisWeek.date)>=ymd(now)){const w=$("#weekNote");w.hidden=false;w.textContent=`שימו לב: השבוע פותחים ביום ${DAYS[thisWeek.day]} במקום ביום ${DAYS[S.day]}`;}
 }
+
+/* ---------- ימי פעילות להזמנה (גם מראש) ---------- */
+function upcomingOpenings(){
+  const now=ilNow(),ws=weekStart(now),out=[],nowMin=now.getHours()*60+now.getMinutes();
+  for(let i=0;i<5;i++){const w=new Date(ws);w.setDate(ws.getDate()+7*i);const op=openingForWeek(w);if(!op)continue;
+    const key=ymd(op.date);if(key<ymd(now))continue;if(key===ymd(now)&&nowMin>=toMin(op.to)-10)continue;
+    out.push({...op,key,today:key===ymd(now)})}
+  return out.slice(0,4);
+}
+const fmtDay=(d,today)=>today?`היום (${DAYS[d.getDay()]})`:`יום ${DAYS[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}`;
+function fillDates(){
+  const ops=upcomingOpenings(),sel=$("#odate"),prev=sel.value;
+  sel.innerHTML=ops.map(o=>`<option value="${o.key}">${fmtDay(o.date,o.today)}</option>`).join("");
+  if(ops.some(o=>o.key===prev))sel.value=prev;fillSlots();
+}
+function fillSlots(){
+  const op=upcomingOpenings().find(o=>o.key===$("#odate").value),sel=$("#oslot");
+  if(!op){sel.innerHTML="";$("#dateNote").textContent="";return}
+  const now=ilNow(),nowMin=now.getHours()*60+now.getMinutes();let start=toMin(op.from),end=toMin(op.to);
+  let opts=[];
+  if(op.today&&nowMin>=start-30)opts.push(`<option value="ASAP">כמה שיותר מוקדם</option>`);
+  if(op.today)start=Math.max(start,Math.ceil((nowMin+30)/15)*15);
+  for(let m=start;m<=end-15;m+=15){const h=String(Math.floor(m/60)%24).padStart(2,"0"),mm=String(m%60).padStart(2,"0");opts.push(`<option value="${h}:${mm}">${h}:${mm}</option>`)}
+  sel.innerHTML=opts.join("")||`<option value="ASAP">כמה שיותר מוקדם</option>`;
+  $("#dateNote").textContent=op.today?"":`הזמנה מראש ל${fmtDay(op.date,false)}, לשעה שבחרתם`;
+}
+document.addEventListener("change",e=>{if(e.target.id==="odate")fillSlots()});
 
 /* ---------- מצב ההזמנה ---------- */
 let burgers=[], sides={}, drinks={};
@@ -528,7 +566,7 @@ $("#bAdd").onclick=()=>{
 
 /* ---------- אחרי מנה: שתייה ותוספות ---------- */
 function renderUpsell(){$("#uBody").innerHTML=`<div class="up-sec">שתייה · ${ils(CFG.prices.drink)}</div><div class="drinks">${drinksHTML()}</div><div class="up-sec">תוספות בצד</div><div class="list">${sidesHTML()}</div>`}
-$("#uDone").onclick=()=>{renderCart();openSheet("cart")};
+$("#uDone").onclick=()=>{renderCart();fillDates();openSheet("cart")};
 $("#addMore").onclick=()=>{renderUpsell();openSheet("upsell")};
 
 /* ---------- עגלה ---------- */
@@ -560,7 +598,7 @@ function renderCart(){
 $("#lines").addEventListener("click",e=>{const b=e.target.closest(".rm");if(!b)return;
   if(b.dataset.rb!==undefined)burgers.splice(+b.dataset.rb,1);else if(b.dataset.rd)delete drinks[b.dataset.rd];else delete sides[b.dataset.rs];
   update();renderCart();renderLists();if(!count())closeSheets()});
-$("#openCart").onclick=()=>{renderCart();openSheet("cart")};
+$("#openCart").onclick=()=>{renderCart();fillDates();openSheet("cart")};
 
 /* ---------- טופס ותשלום ---------- */
 const isDelivery=()=>document.querySelector('[name="how"]:checked').value==="משלוח";
@@ -571,6 +609,7 @@ function setErr(id,bad){$("#"+id).classList.toggle("invalid",bad);return bad}
 function validate(){
   const ph=$("#phone").value.replace(/\D/g,"");
   const bad=[setErr("f-name",!$("#name").value.trim()),setErr("f-phone",!/^05\d{8}$/.test(ph))];
+  bad.push(setErr("f-date",!$("#odate").value));
   if(isDelivery())bad.push(setErr("f-town",!$("#town").value),setErr("f-addr",!$("#addr").value.trim()));
   else{setErr("f-town",false);setErr("f-addr",false)}
   const first=document.querySelector(".invalid input,.invalid select");if(first)first.focus();
@@ -585,7 +624,9 @@ $("#sendWa").onclick=()=>{
   Object.entries(drinks).forEach(([id,q])=>lines.push(`${q} × ${drinkById(id).name} – ${ils(CFG.prices.drink*q)}`));
   Object.entries(sides).forEach(([id,q])=>{const s=SIDES.find(x=>x.id===id);lines.push(`${q} × ${s.n}${s.s?" ("+s.s+")":""} – ${ils(CFG.prices.sides[id]*q)}`)});
   const o={lines,total:total(),pay:document.querySelector('[name="pay"]:checked').value,name:$("#name").value.trim(),phone:$("#phone").value.trim(),
-    how:isDelivery()?"משלוח":"איסוף עצמי",town:isDelivery()?$("#town").value:"",addr:isDelivery()?$("#addr").value.trim():"",time:$("#time").value.trim(),notes:$("#notes").value.trim()};
+    how:isDelivery()?"משלוח":"איסוף עצמי",town:isDelivery()?$("#town").value:"",addr:isDelivery()?$("#addr").value.trim():"",date:$("#odate").value,slot:$("#oslot").value,notes:$("#notes").value.trim()};
+  const dd=new Date($("#odate").value+"T12:00"),isToday=$("#odate").value===ymd(ilNow());
+  const when=`${fmtDay(dd,isToday)}, ${o.slot==="ASAP"?"כמה שיותר מוקדם":"בשעה "+o.slot}`;
   // מספר הזמנה (נוצר מיד, בלי לחכות לשרת)
   let id=null;
   if(window.FS&&window.FDB){try{id=FS.doc(FS.collection(FDB,"orders")).id}catch(e){}}
@@ -593,23 +634,42 @@ $("#sendWa").onclick=()=>{
   lines.forEach(l=>{const [h,...rest]=l.split("\n");m+=`• *${h}*\n${rest.map(x=>"  "+x).join("\n")}${rest.length?"\n":""}`});
   m+=`\n*סה"כ: ${ils(o.total)}*\nתשלום: ${o.pay}\n\nשם: ${o.name}\nטלפון: ${o.phone}\n`;
   m+=o.how==="משלוח"?`משלוח ל: ${o.town}, ${o.addr}\n`:`איסוף עצמי\n`;
-  if(o.time)m+=`שעה רצויה: ${o.time}\n`;
+  m+=`מתי: ${when}${isToday?"":" (הזמנה מראש)"}\n`;
   if(o.notes)m+=`הערות: ${o.notes}\n`;
   if(id)m+=`\nלאישור ההזמנה וזמן הכנה:\n${location.origin+location.pathname}#manage`;
   window.open(`https://wa.me/${PHONE_WA}?text=${encodeURIComponent(m)}`,"_blank");
   if(id){
     FS.setDoc(FS.doc(FDB,"orders",id),{...o,status:"new",createdAt:FS.serverTimestamp()})
-      .then(()=>{try{localStorage.setItem("bh-order",JSON.stringify({id,at:Date.now()}))}catch(e){}
+      .then(()=>{try{localStorage.setItem("bh-order",JSON.stringify({id,at:Date.now(),cart:{burgers,sides,drinks}}))}catch(e){}
         burgers=[];sides={};drinks={};update();renderLists();closeSheets();track(id);openSheet("tracker")})
       .catch(e=>{console.warn(e);toast("ההזמנה נשלחה בוואטסאפ")});
   }
 };
 
+/* ---------- מועדפים (נשמרים בטלפון של הלקוח) ---------- */
+const favs=()=>{try{return JSON.parse(localStorage.getItem("bh-favs")||"[]")}catch(e){return[]}};
+function cartTitle(c){const p=[];c.burgers.forEach(b=>p.push(KINDS[b.kind].n));Object.entries(c.drinks||{}).forEach(([id,q])=>{const d=drinkById(id);if(d)p.push(`${q}× ${d.name}`)});Object.entries(c.sides||{}).forEach(([id,q])=>{const s=SIDES.find(x=>x.id===id);if(s)p.push(`${q}× ${s.n}`)});return p.join(" · ")}
+function saveFav(c){if(!c||!(c.burgers.length||Object.keys(c.sides||{}).length||Object.keys(c.drinks||{}).length)){toast("אין מה לשמור");return}
+  const f=favs();const t=cartTitle(c);if(f.some(x=>x.t===t)){toast("כבר במועדפים ⭐");return}
+  f.unshift({t,c:JSON.parse(JSON.stringify(c))});try{localStorage.setItem("bh-favs",JSON.stringify(f.slice(0,8)))}catch(e){}
+  renderFavs();toast("נשמר במועדפים ⭐");}
+function renderFavs(){const f=favs(),box=$("#favs");if(!box)return;box.hidden=!f.length;
+  $("#favList").innerHTML=f.map((x,i)=>`<div class="item"><span class="n">⭐ ${esc(x.t)}</span><button class="btn btn-yolk" style="min-height:40px;padding:0 14px" data-fav="${i}">להזמין שוב</button><button class="rm" data-favdel="${i}" aria-label="הסרה מהמועדפים">✕</button></div>`).join("")}
+document.addEventListener("click",e=>{
+  const a=e.target.closest("[data-fav]"),d=e.target.closest("[data-favdel]");
+  if(a){const x=favs()[+a.dataset.fav];if(!x)return;burgers=burgers.concat(JSON.parse(JSON.stringify(x.c.burgers)));
+    for(const[k,v]of Object.entries(x.c.sides||{}))sides[k]=(sides[k]||0)+v;for(const[k,v]of Object.entries(x.c.drinks||{}))drinks[k]=(drinks[k]||0)+v;
+    clean();update(true);renderLists();renderCart();fillDates();openSheet("cart");toast("ההזמנה נוספה לעגלה")}
+  if(d){const f=favs();f.splice(+d.dataset.favdel,1);try{localStorage.setItem("bh-favs",JSON.stringify(f))}catch(e){}renderFavs()}
+  if(e.target.id==="favSave"){try{const o=JSON.parse(localStorage.getItem("bh-order")||"null");saveFav(o&&o.cart)}catch(err){}}
+  if(e.target.id==="favCart")saveFav({burgers,sides,drinks});
+});
+
 /* ---------- מעקב הזמנה ללקוח ---------- */
 let trackUnsub=null,trackTick=null,trackData=null;
-const ST={new:["⏳","ההזמנה נשלחה","מחכים לאישור של בורגר המשק"],accepted:["🔥","ההזמנה אושרה ובהכנה",""],
-  out:["🛵","ההזמנה בדרך אליך!","השליח יצא – עוד מעט אצלך"],ready:["✅","ההזמנה מוכנה לאיסוף!","מחכה לך אצלנו"],
-  done:["🍔","בתאבון!","תודה שהזמנת מבורגר המשק"],rejected:["✖","ההזמנה בוטלה",`לפרטים: ${PHONE_SHOW}`]};
+const ST={new:["🏠","ההזמנה התקבלה בבית העסק","מחכים לאישור – עוד רגע מתחילים להכין"],accepted:["🔥","ההזמנה אושרה ובהכנה",""],
+  ready:["✅","ההזמנה מוכנה!",""],pickup_pending:["✅","ההזמנה מוכנה!","השליח אוסף אותה עכשיו"],
+  out:["🛵","ההזמנה בדרך אליך!",""],done:["🍔","בתאבון!","תודה שהזמנת מבורגר המשק"],rejected:["✖","ההזמנה בוטלה",`לפרטים: ${PHONE_SHOW}`]};
 let trackId=null,trackPoll=null;
 const FINAL=["done","rejected"];
 function gotOrder(id,snap){if(!snap||!snap.exists())return;trackData={id,...snap.data()};renderTrack();if(FINAL.includes(trackData.status))clearInterval(trackPoll)}
@@ -629,7 +689,12 @@ function wake(){if(trackId&&document.visibilityState==="visible"&&!(trackData&&F
 document.addEventListener("visibilitychange",wake);window.addEventListener("focus",wake);window.addEventListener("online",wake);
 function renderTrack(){
   const d=trackData;if(!d)return;
-  const [ic,title,sub]=ST[d.status]||ST.new;
+  let [ic,title,sub]=ST[d.status]||ST.new;
+  const todayKey=ymd(ilNow()),future=d.date&&d.date>todayKey;
+  const whenTxt=d.date?`${fmtDay(new Date(d.date+"T12:00"),d.date===todayKey)}${d.slot&&d.slot!=="ASAP"?", "+d.slot:""}`:"";
+  if(d.status==="new"&&future){ic="📅";sub=`ממתינה ליום פעילות: ${whenTxt}`}
+  if(d.status==="ready")sub=d.how==="משלוח"?"מחכה לשליח – תכף יוצאת אליך":"מחכה לך לאיסוף אצלנו";
+  if(d.status==="out")sub=d.courierName?`השליח ${esc(d.courierName)} בדרך אליך`:"השליח יצא – עוד מעט אצלך";
   let mid="",bar="";
   if(d.status==="accepted"&&d.readyAt){
     const left=Math.max(0,Math.round((d.readyAt.toMillis()-Date.now())/1000)),tot=Math.max(60,(d.minutes||20)*60);
@@ -637,18 +702,20 @@ function renderTrack(){
     mid=left>0?`<div class="tk-time" aria-live="off">${mm}:${ss}</div><p class="tk-sub">עד שההזמנה מוכנה${d.how==="משלוח"?" ויוצאת אליך":""}</p>`:`<p class="tk-sub">עוד רגע מוכנה…</p>`;
     bar=`<div class="tk-bar"><span style="width:${Math.min(100,100-left/tot*100)}%"></span></div>`;
   }
-  const steps=["new","accepted",d.how==="משלוח"?"out":"ready","done"],cur=Math.max(0,steps.indexOf(d.status));
+  const steps=["new","accepted",d.how==="משלוח"?"out":"ready","done"],cur=Math.max(0,steps.indexOf(d.status==="pickup_pending"||(d.status==="ready"&&d.how==="משלוח")?"accepted":d.status));
   $("#tkBody").innerHTML=`<div class="tk-ic" aria-hidden="true">${ic}</div><h3 class="tk-title">${title}</h3>${sub?`<p class="tk-sub">${sub}</p>`:""}${mid}${bar}
-    ${d.status!=="rejected"?`<ol class="tk-steps">${["נשלחה","בהכנה",d.how==="משלוח"?"בדרך":"מוכנה","נמסרה"].map((t,i)=>`<li class="${i<=cur?"on":""}">${t}</li>`).join("")}</ol>`:""}
-    <p class="tk-no">הזמנה #${d.id.slice(0,5).toUpperCase()} · ${ils(d.total)}</p>`;
+    ${d.status!=="rejected"?`<ol class="tk-steps">${["התקבלה","בהכנה",d.how==="משלוח"?"בדרך":"מוכנה","נמסרה"].map((t,i)=>`<li class="${i<=cur?"on":""}">${t}</li>`).join("")}</ol>`:""}
+    ${d.status==="out"&&d.courierPhone?`<a class="btn btn-yolk" style="width:100%;margin-top:14px" href="tel:${esc(d.courierPhone)}">📞 להתקשר לשליח ${esc(d.courierName||"")}</a>`:""}
+    <p class="tk-no">הזמנה #${d.id.slice(0,5).toUpperCase()} · ${ils(d.total)}${whenTxt?" · "+whenTxt:""}</p>
+    <button class="btn btn-ghost" id="favSave" style="width:100%;margin-top:12px">⭐ שמירת ההזמנה למועדפים</button>`;
   const tb=$("#trackBar");tb.hidden=["done","rejected"].includes(d.status)&&!$("#tracker").classList.contains("on");
   $("#trackBarTxt").textContent=d.status==="accepted"&&d.readyAt?`מוכנה בעוד ${Math.max(0,Math.ceil((d.readyAt.toMillis()-Date.now())/60000))} דק'`:title;
-  if(["done","rejected"].includes(d.status)){try{localStorage.removeItem("bh-order")}catch(e){}}
+
 }
 let tt;function toast(s){const t=$("#toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),2000)}
 
 /* ---------- טעינת הגדרות ---------- */
-function renderAll(){renderKinds();renderLists();renderStatus();clean();update()}
+function renderAll(){renderKinds();renderLists();renderStatus();clean();update();renderFavs();if($("#cart").classList.contains("on"))fillDates()}
 function applySettings(s){CFG=merge(structuredClone(DEFAULTS),s);if(s.drinks)CFG.drinks=s.drinks;renderAll()}
 renderAll();
 // 1) מיד: הקובץ שבאתר (גיבוי)  2) Firebase – חי, כל שינוי של המנהל מגיע מיד
@@ -659,7 +726,7 @@ fetch("settings.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():nu
   const [app,fs]=await Promise.all([import(V+"firebase-app.js"),import(V+"firebase-firestore.js")]);
   const a=app.getApps().length?app.getApp():app.initializeApp(FIREBASE_CONFIG);const db=fs.getFirestore(a);
   window.FS=fs;window.FDB=db;
-  try{const o=JSON.parse(localStorage.getItem("bh-order")||"null");if(o&&Date.now()-o.at<12*3600e3){track(o.id);$("#trackBar").hidden=false}}catch(e){}
+  try{const o=JSON.parse(localStorage.getItem("bh-order")||"null");if(o&&Date.now()-o.at<15*24*3600e3){track(o.id);$("#trackBar").hidden=false}}catch(e){}
   fs.onSnapshot(fs.doc(db,"site","settings"),async snap=>{
     if(!snap.exists())return;liveOK=true;const s=snap.data();
     const need=(s.drinks||[]).map(d=>d.img||"").filter(i=>i.startsWith("fs:")&&!IMGS[i.slice(3)]).map(i=>i.slice(3));
@@ -674,6 +741,11 @@ $("#adminBtn").onclick=()=>{
   const sc=document.createElement("script");sc.src="admin.js?v="+Date.now();sc.onload=()=>BHAdmin.open();document.body.appendChild(sc);
 };
 if(location.hash==="#admin")history.replaceState(null,"",location.pathname+location.search);
+$("#courierBtn").onclick=()=>{
+  if(window.BHCourier){BHCourier.open();return}
+  const sc=document.createElement("script");sc.src="courier.js?v="+Date.now();sc.onload=()=>BHCourier.open();document.body.appendChild(sc);
+};
+if(location.hash==="#courier"){history.replaceState(null,"",location.pathname+location.search);$("#courierBtn").click()}
 if(location.hash==="#manage"){history.replaceState(null,"",location.pathname+location.search);window.BH_START_TAB="orders";$("#adminBtn").click()}
 </script>
 </body>
