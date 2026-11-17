@@ -199,13 +199,32 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .tk-no{text-align:center;color:var(--straw);font-size:14px;margin-top:12px}
 .trackbar{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:35;display:flex;gap:12px;align-items:center;padding:10px 18px;border-radius:999px;background:var(--yolk);color:var(--char);font-weight:800;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 .trackbar[hidden]{display:none}
+/* ---------- תנועה ---------- */
+@keyframes signDrop{0%{transform:translateY(-40px) rotate(-4deg);opacity:0}45%{transform:translateY(0) rotate(2.5deg);opacity:1}70%{transform:rotate(-1.2deg)}100%{transform:none}}
+.hero-img img{transform-origin:50% 0;animation:signDrop 1.3s cubic-bezier(.3,.7,.3,1) both}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(95,208,122,.55)}100%{box-shadow:0 0 0 12px rgba(95,208,122,0)}}
+.status.open .dot{animation:pulse 1.6s ease-out infinite}
+@keyframes flame{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.14) rotate(3deg)}}
+@keyframes ride{0%{transform:translateX(60px)}50%{transform:translateX(-60px) rotate(-4deg)}100%{transform:translateX(60px)}}
+@keyframes pop{0%{transform:scale(.3)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+.tk-ic{animation:pop .5s ease both}
+.tk-ic.s-accepted{animation:flame .9s ease-in-out infinite}
+.tk-ic.s-out{animation:ride 3s ease-in-out infinite}
+.tk-ic.s-ready,.tk-ic.s-done{animation:pop .6s ease both}
+.tk-time{animation:pop .5s ease both}
+.opt .plus,.qty button{transition:transform .12s}
+.opt:active .plus,.qty button:active{transform:scale(.8)}
+.opt:active{transform:scale(.985)}
+.qty.has output{animation:pop .3s ease}
+.flyer{position:fixed;z-index:60;font-size:30px;pointer-events:none;left:0;top:0}
 .toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-150%);background:var(--chalk);color:var(--char);font-weight:800;padding:12px 20px;border-radius:12px;z-index:70;transition:transform .3s;box-shadow:0 10px 24px rgba(0,0,0,.5)}
 .toast.on{transform:translate(-50%,0)}
 
 /* ---------- additions v3 ---------- */
 .drinks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
-.dk{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 10px;border-radius:14px;background:var(--char-2);border:1px solid var(--line);text-align:center}
-.dk img{width:64px;height:80px;object-fit:contain}
+.dk{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 0 12px;overflow:hidden;border-radius:14px;background:var(--char-2);border:1px solid var(--line);text-align:center}
+.dk img{width:64px;height:80px;object-fit:contain;margin-top:12px}
+.dk img.ph{width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;margin-top:0}
 .dk b{font-weight:800;font-size:17px;line-height:1.2}
 .dk.out{opacity:.45}
 .dk .soldout{font-size:14px;font-weight:800;color:#ff9b87}
@@ -215,6 +234,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 .hint{color:var(--straw);font-size:14.5px;font-weight:600;margin-top:6px}
 .dchips .chip span{padding:0 12px 0 8px}
 .dchips .chip img{width:22px;height:30px;object-fit:contain;border-radius:0;margin:0}
+.dchips .chip img.ph{width:34px;height:34px;object-fit:cover;border-radius:6px}
 .schip{display:inline-flex;align-items:stretch;border-radius:10px;border:1.5px solid var(--line);background:rgba(0,0,0,.2);overflow:hidden}
 .schip button{min-height:44px;font-weight:700;color:var(--chalk)}
 .schip .sadd{padding:0 16px}
@@ -278,15 +298,16 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
     </div>
   </section>
 
+  <section aria-labelledby="h-sides">
+    <h2 id="h-sides">תוספות בצד</h2>
+    <div class="list" id="sides"></div>
+  </section>
+
   <section aria-labelledby="h-drinks">
     <h2 id="h-drinks">שתייה</h2>
     <div class="drinks" id="drinksGrid"></div>
   </section>
 
-  <section aria-labelledby="h-sides">
-    <h2 id="h-sides">תוספות בצד</h2>
-    <div class="list" id="sides"></div>
-  </section>
 
   <section aria-labelledby="h-del">
     <h2 id="h-del">משלוחים</h2>
@@ -315,7 +336,7 @@ legend small{font-weight:600;color:var(--straw);font-size:14.5px;margin-inline-s
 
 <!-- upsell: drinks & sides after a burger -->
 <div class="sheet" id="upsell" role="dialog" aria-modal="true" aria-labelledby="uTitle">
-  <div class="sh-head"><h2 id="uTitle">להוסיף שתייה או תוספות?</h2><button class="x" data-close aria-label="סגירה">×</button></div>
+  <div class="sh-head"><h2 id="uTitle">להוסיף תוספות או שתייה?</h2><button class="x" data-close aria-label="סגירה">×</button></div>
   <div class="sh-body" id="uBody"></div>
   <div class="sh-foot" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
     <button class="btn btn-ghost" data-close>להמשיך לבחור</button>
@@ -542,13 +563,14 @@ function qtyCtl(attr,id,q,label){return `<span class="qty ${q?"has":""}"><button
 function sidesHTML(){const P=CFG.prices.sides;return SIDES.filter(x=>!hidden("sides",x.id)).map(s=>`
   <div class="item"><img class="th" src="img/${s.img}.jpg" alt=""><span class="n">${s.n}${s.s?`<small>${s.s}</small>`:""}</span><span class="p">${ils(P[s.id])}</span>${qtyCtl("data-side",s.id,sides[s.id]||0,s.n)}</div>`).join("")}
 function drinksHTML(){return CFG.drinks.map(d=>`
-  <div class="dk ${d.on?"":"out"}"><img src="${esc(drinkImg(d))}" alt="" onerror="this.src='${bottle(d)}'"><b>${esc(d.name)}</b>
+  <div class="dk ${d.on?"":"out"}"><img class="${d.img?"ph":""}" src="${esc(drinkImg(d))}" alt="" onerror="this.src='${bottle(d)}'"><b>${esc(d.name)}</b>
   ${d.on?`<span class="p" style="font-family:var(--display);color:#ffe9b8">${ils(CFG.prices.drink)}</span>${qtyCtl("data-drink",d.id,drinks[d.id]||0,d.name)}`:`<span class="soldout">אזל</span>`}</div>`).join("")}
 function renderLists(){$("#sides").innerHTML=sidesHTML();$("#drinksGrid").innerHTML=drinksHTML();if($("#upsell").classList.contains("on"))renderUpsell()}
 function onQty(e){
   const b=e.target.closest("[data-side],[data-drink]");if(!b)return;
   const isSide=b.hasAttribute("data-side"),id=isSide?b.dataset.side:b.dataset.drink,map=isSide?sides:drinks,attr=isSide?"data-side":"data-drink";
   map[id]=Math.max(0,(map[id]||0)+ +b.dataset.d);if(!map[id])delete map[id];
+  if(+b.dataset.d>0)fly(b,isSide?"🍟":"🥤");
   update(+b.dataset.d>0);renderLists();
   const again=document.querySelector(`.on [${attr}="${id}"][data-d="${b.dataset.d}"]`)||document.querySelector(`[${attr}="${id}"][data-d="${b.dataset.d}"]`);again&&again.focus();
 }
@@ -574,7 +596,7 @@ $("#kinds").addEventListener("click",e=>{const b=e.target.closest(".opt");if(!b)
     h+=`<fieldset><legend>ירקות במנה<small>לחיצה מורידה</small></legend><div class="chips">${VEG.map(v=>`<label class="chip"><input type="checkbox" name="v${i}" value="${v}" checked><span>${v}</span></label>`).join("")}</div></fieldset>
       <fieldset><legend>רטבים בתוך המנה<small>כמה שרוצים</small></legend><div class="chips">${sauceList().map(s=>`<label class="chip"><input type="checkbox" name="m${i}" value="${s}"><span>${s}</span></label>`).join("")}</div></fieldset>
       <fieldset><legend>רטבים בצד<small>עד ${CFG.sauceMax}, אפשר אותו רוטב כמה פעמים</small></legend><div id="sc${i}"></div></fieldset>`;
-    if(K.drinks)h+=`<fieldset><legend>השתייה בארוחה</legend><div class="chips dchips">${avail.map(d=>`<label class="chip"><input type="radio" name="dr${i}" value="${d.id}"><span><img src="${esc(drinkImg(d))}" alt="" onerror="this.src='${bottle(d)}'">${esc(d.name)}</span></label>`).join("")||'<span class="hint">אין כרגע שתייה במלאי</span>'}</div></fieldset>`;
+    if(K.drinks)h+=`<fieldset><legend>השתייה בארוחה</legend><div class="chips dchips">${avail.map(d=>`<label class="chip"><input type="radio" name="dr${i}" value="${d.id}"><span><img class="${d.img?"ph":""}" src="${esc(drinkImg(d))}" alt="" onerror="this.src='${bottle(d)}'">${esc(d.name)}</span></label>`).join("")||'<span class="hint">אין כרגע שתייה במלאי</span>'}</div></fieldset>`;
     h+=`<fieldset><legend>תוספות לבורגר<small>בתשלום</small></legend><div class="chips">${
       EXTRAS.filter(x=>!hidden("extras",x.id)).map(x=>`<label class="chip"><input type="checkbox" name="x${i}" value="${x.id}"><span><img src="img/${x.img}.jpg" alt="">${x.n} <em>+${CFG.prices.extras[x.id]}</em></span></label>`).join("")}</div></fieldset>`;
   }
@@ -603,11 +625,11 @@ $("#bBody").addEventListener("change",refreshBuilder);
 $("#bAdd").onclick=()=>{
   const b=readBuilder();
   if(KINDS[b.kind].drinks&&drinksOn().length&&b.sub.some(s=>!s.drink)){const e=$("#bErr");e.textContent="בחרו את השתייה שבארוחה";e.style.display="block";return}
-  burgers.push(b);update(true);renderUpsell();openSheet("upsell");
+  fly($("#bAdd"),"🍔");burgers.push(b);update(true);renderUpsell();openSheet("upsell");
 };
 
 /* ---------- אחרי מנה: שתייה ותוספות ---------- */
-function renderUpsell(){$("#uBody").innerHTML=`<div class="up-sec">שתייה · ${ils(CFG.prices.drink)}</div><div class="drinks">${drinksHTML()}</div><div class="up-sec">תוספות בצד</div><div class="list">${sidesHTML()}</div>`}
+function renderUpsell(){$("#uBody").innerHTML=`<div class="up-sec">תוספות בצד</div><div class="list">${sidesHTML()}</div><div class="up-sec">שתייה נוספת · ${ils(CFG.prices.drink)}</div><div class="drinks">${drinksHTML()}</div>`}
 $("#uDone").onclick=()=>{renderCart();fillDates();openSheet("cart")};
 $("#addMore").onclick=()=>{renderUpsell();openSheet("upsell")};
 
@@ -678,7 +700,7 @@ $("#sendWa").onclick=()=>{
   m+=o.how==="משלוח"?`משלוח ל: ${o.town}, ${o.addr}\n`:`איסוף עצמי\n`;
   m+=`מתי: ${when}${isToday?"":" (הזמנה מראש)"}\n`;
   if(o.notes)m+=`הערות: ${o.notes}\n`;
-  if(id)m+=`\nלאישור ההזמנה וזמן הכנה:\n${location.origin+location.pathname}#manage`;
+  if(id)m+=`\nקישור להזמנה:\n${location.origin+location.pathname}#o=${id}`;
   window.open(`https://wa.me/${PHONE_WA}?text=${encodeURIComponent(m)}`,"_blank");
   if(id){
     const L=CFG.limit||{},lim=L.mode&&L.mode!=="off",op=upcomingOpenings().find(x=>x.key===o.date);
@@ -781,15 +803,27 @@ function renderTrack(){
     bar=`<div class="tk-bar"><span style="width:${Math.min(100,100-left/tot*100)}%"></span></div>`;
   }
   const steps=["new","accepted",d.how==="משלוח"?"out":"ready","done"],cur=Math.max(0,steps.indexOf(d.status==="pickup_pending"||(d.status==="ready"&&d.how==="משלוח")?"accepted":d.status));
-  $("#tkBody").innerHTML=`<div class="tk-ic" aria-hidden="true">${ic}</div><h3 class="tk-title">${title}</h3>${sub?`<p class="tk-sub">${sub}</p>`:""}${mid}${bar}
+  const left2=d.readyAt?Math.max(0,Math.round((d.readyAt.toMillis()-Date.now())/1000)):0,key=[d.id,d.status,d.courierName,!!d.readyAt,left2>0,future].join("|"),tEl=$("#tkBody .tk-time");
+  if(key===renderTrack.key&&(tEl||!mid.includes("tk-time"))){if(tEl){tEl.textContent=`${Math.floor(left2/60)}:${String(left2%60).padStart(2,"0")}`;const sp=$("#tkBody .tk-bar span");if(sp)sp.style.width=Math.min(100,100-left2/Math.max(60,(d.minutes||20)*60)*100)+"%"}}
+  else{const was=renderTrack.key;renderTrack.key=key;
+  $("#tkBody").innerHTML=`<div class="tk-ic s-${d.status}" aria-hidden="true">${ic}</div><h3 class="tk-title">${title}</h3>${sub?`<p class="tk-sub">${sub}</p>`:""}${mid}${bar}
     ${d.status!=="rejected"?`<ol class="tk-steps">${["התקבלה","בהכנה",d.how==="משלוח"?"בדרך":"מוכנה","נמסרה"].map((t,i)=>`<li class="${i<=cur?"on":""}">${t}</li>`).join("")}</ol>`:""}
     ${d.status==="out"&&d.courierPhone?`<a class="btn btn-yolk" style="width:100%;margin-top:14px" href="tel:${esc(d.courierPhone)}">📞 להתקשר לשליח ${esc(d.courierName||"")}</a>`:""}
     <p class="tk-no">הזמנה #${d.id.slice(0,5).toUpperCase()} · ${ils(d.total)}${whenTxt?" · "+whenTxt:""}</p>
     <button class="btn btn-ghost" id="favSave" style="width:100%;margin-top:12px">⭐ שמירת ההזמנה למועדפים</button>`;
+  if(was&&d.status==="done")party();if(was&&was.split("|")[1]!==d.status&&navigator.vibrate)navigator.vibrate(120);}
   const tb=$("#trackBar");tb.hidden=["done","rejected"].includes(d.status)&&!$("#tracker").classList.contains("on");
   $("#trackBarTxt").textContent=d.status==="accepted"&&d.readyAt?`מוכנה בעוד ${Math.max(0,Math.ceil((d.readyAt.toMillis()-Date.now())/60000))} דק'`:title;
 
 }
+/* מנה "עפה" לעגלה, וקונפטי כשההזמנה נמסרה */
+const calm=()=>matchMedia("(prefers-reduced-motion:reduce)").matches;
+function fly(from,emoji){if(calm()||!from||!from.animate)return;const r=from.getBoundingClientRect(),t=$("#openCart").getBoundingClientRect(),e=document.createElement("span");
+  e.className="flyer";e.textContent=emoji;e.setAttribute("aria-hidden","true");document.body.appendChild(e);
+  const x0=r.left+r.width/2-15,y0=r.top-10,x1=t.left+40,y1=Math.min(innerHeight-60,t.top);
+  e.animate([{transform:`translate(${x0}px,${y0}px) scale(1)`},{transform:`translate(${(x0+x1)/2}px,${Math.min(y0,y1)-90}px) scale(1.5)`,offset:.45},{transform:`translate(${x1}px,${y1}px) scale(.4)`,opacity:.3}],{duration:650,easing:"cubic-bezier(.4,0,.6,1)"}).onfinish=()=>e.remove()}
+function party(){if(calm())return;const em=["🍔","🍟","🥤","⭐","🎉"];for(let i=0;i<22;i++){const e=document.createElement("span");e.className="flyer";e.textContent=em[i%em.length];e.setAttribute("aria-hidden","true");document.body.appendChild(e);
+  const x=Math.random()*innerWidth;e.animate([{transform:`translate(${x}px,-40px) rotate(0)`},{transform:`translate(${x+(Math.random()*120-60)}px,${innerHeight+40}px) rotate(${Math.random()*720-360}deg)`}],{duration:1600+Math.random()*1400,delay:Math.random()*500,easing:"cubic-bezier(.3,.2,.6,1)"}).onfinish=()=>e.remove()}}
 let tt;function toast(s){const t=$("#toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),2000)}
 
 /* ---------- טעינת הגדרות ---------- */
@@ -804,6 +838,13 @@ fetch("settings.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():nu
   const [app,fs]=await Promise.all([import(V+"firebase-app.js"),import(V+"firebase-firestore.js")]);
   const a=app.getApps().length?app.getApp():app.initializeApp(FIREBASE_CONFIG);const db=fs.getFirestore(a);
   window.FS=fs;window.FDB=db;
+  // קישור הזמנה מהוואטסאפ: מנהל מחובר -> מסך ההזמנות. כל אחד אחר -> מעקב ההזמנה (בלי בקשת סיסמה)
+  const mo=location.hash.match(/^#o=([\w-]+)/);
+  if(mo){history.replaceState(null,"",location.pathname+location.search);
+    (async()=>{let mgr=false;try{const au=await import(V+"firebase-auth.js"),auth=au.getAuth(a);await new Promise(r=>{const u=au.onAuthStateChanged(auth,()=>{u();r()})});mgr=!!(auth.currentUser&&auth.currentUser.email==="manager@burger-hameshek.app")}catch(e){}
+      if(mgr){window.BH_START_TAB="orders";$("#adminBtn").click()}
+      else{try{if(!localStorage.getItem("bh-order"))localStorage.setItem("bh-order",JSON.stringify({id:mo[1],at:Date.now()}))}catch(e){}
+        track(mo[1]);$("#trackBar").hidden=false;openSheet("tracker")}})()}
   try{const o=JSON.parse(localStorage.getItem("bh-order")||"null");if(o&&Date.now()-o.at<15*24*3600e3){track(o.id);$("#trackBar").hidden=false}}catch(e){}
   fs.onSnapshot(fs.doc(db,"site","settings"),async snap=>{
     if(!snap.exists())return;liveOK=true;const s=snap.data();
